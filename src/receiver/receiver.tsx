@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Web3 from 'web3';
 import './receiver.css';
+import { useNavigate } from 'react-router-dom';
 
 // Example of smart contract ABI and address (replace these with your actual values)
 const contractABI = [
@@ -26,12 +27,23 @@ const Receiver: React.FC = () => {
   const [transactionStatus, setTransactionStatus] = useState<string>('');
   const web3 = new Web3();
 
+  const navigate = useNavigate(); // Initialize the navigate hook
+
+  // Load the account from localStorage on initial render
+  useEffect(() => {
+    const savedAccount = localStorage.getItem('account');
+    if (!savedAccount) {
+      navigate('/'); // Replace '/receiver' with the appropriate route
+    }
+  }, [navigate]);
+
   const generateAccount = (): any => {
     const newAccount = web3.eth.accounts.create();
     return newAccount;
   };
 
   const handleGenerateAccount = () => {
+    console.log(localStorage.getItem('account'));
     const newAccount = generateAccount();
     setAccount(newAccount);
   };
