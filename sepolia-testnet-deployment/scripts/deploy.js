@@ -1,11 +1,10 @@
 const hre = require("hardhat");
 
 async function main() {
-    const ens = await hre.ethers.getContractFactory("StealthAddressRegistry");
-    const contract = await ens.deploy();
+    const StealthAddressRegistry = await hre.ethers.getContractFactory("StealthAddressRegistry");
+    const contract = await StealthAddressRegistry.deploy();
 
-    await contract.deployed();
-    console.log("Contract deployed to:", contract.address);
+    console.log("Contract deployed to:", contract.target); // Use `target` to get the address
 }
 
 main()
