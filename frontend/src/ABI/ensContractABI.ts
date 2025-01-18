@@ -1,4 +1,4 @@
-export const contractABI = [
+export const ensContractABI = [
     {
       "anonymous": false,
       "inputs": [

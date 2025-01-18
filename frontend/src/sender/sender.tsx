@@ -1,19 +1,21 @@
 import React, { useEffect, useState } from 'react';
 import Web3 from 'web3';
-import './receiver.css';
+import './sender.css';
 import { useNavigate } from 'react-router-dom';
+import { ethers } from "ethers"; 
 import { ensContractABI } from '../ABI/ensContractABI';
 import { ephermalPubKeyRegistryContractABI } from '../ABI/ephermalPubKeyRegistryABI';
-import { ethers } from "ethers"; 
 
 // Example of smart contract ABI and address (replace these with your actual values)
 
 // ENS contract address
-const contractAddress = "0x3dc3251A1CeAFb50ce6CC107262668B75983c06B";
+const ENSContractAddress = "0x3dc3251A1CeAFb50ce6CC107262668B75983c06B";
 const EphermalPubKeyRegistryContractAddress = "0xD0c1CD72CAEe16b7c488Aa6B9185b5fd219EC45C";
 
-const Receiver: React.FC = () => {
+const Sender: React.FC = () => {
   const [account, setAccount] = useState<any>({ privateKey: '', address: '' });
+  const [ephermalKey, setEphermalKey] = useState('');
+  const [address, setAddress] = useState('');
   const [transactionStatus, setTransactionStatus] = useState<string>('');
   const web3 = new Web3();
 
@@ -27,48 +29,28 @@ const Receiver: React.FC = () => {
     }
   }, [navigate]);
 
-  const generateAccount = (): any => {
-    const newAccount = web3.eth.accounts.create();
-    return newAccount;
-  };
-
-  const handleGenerateAccount = () => {
-    console.log(localStorage.getItem('account'));
-    const newAccount = generateAccount();
-    setAccount(newAccount);
-  };
-
-  const handleGetEphermalKeys = async () => {
+  const handleGenerateEphermalPubKey = () => {
+    if (!address) {
+      alert('Please enter a valid address.');
+      return;
+    }
     try {
-      if (typeof window.ethereum === "undefined") {
-        throw new Error("MetaMask is not installed");
-      }
-  
-      const web3 = new Web3(window.ethereum);
-  
-      await window.ethereum.request({ method: "eth_requestAccounts" });
-  
-      const accounts = await web3.eth.getAccounts();
-      const userAddress = accounts[0];
-  
-      // Connect to the contract
-      const contract = new web3.eth.Contract(
-        ephermalPubKeyRegistryContractABI,
-        EphermalPubKeyRegistryContractAddress
-      );
-  
-      // Call the contract method to fetch all ephemeral keys
-      const ephemeralKeys = await contract.methods.getPubKeys().call({ from: userAddress });
-  
-      console.log("Ephemeral Keys:", ephemeralKeys);
+      // Generate ephemeral key pair using ethers.js
+      const ephermalAccount = web3.eth.accounts.create();
+      const ephermalPublicKey = ephermalAccount.address;
+
+      console.log('Ephemeral Private Key:', ephermalAccount.privateKey);
+      console.log('Ephemeral Public Key:', ephermalPublicKey);
+
+      // Save the ephemeral key locally for use in transactions
+      setEphermalKey(ephermalAccount.address);
+      setAccount({ privateKey: ephermalAccount.privateKey, address: ephermalPublicKey });
     } catch (error) {
-      console.error("Error fetching ephemeral keys:", error);
-      alert("Failed to fetch ephemeral keys. Check console for details.");
+      console.error('Error generating ephemeral key:', error);
     }
   };
-  
 
-  const handleSendMetaAddress = async () => {
+  const handleSendEphermalPubKey = async () => {
     try {
       if (!account.address) {
         setTransactionStatus('Error: No account address generated.');
@@ -92,10 +74,10 @@ const Receiver: React.FC = () => {
       const userAddress = accounts[0];
 
       // Connect to MetaMask
-      const contract = new web3.eth.Contract(ensContractABI, contractAddress);
+      const ephermalPubKeyRegistryContract = new web3.eth.Contract(ephermalPubKeyRegistryContractABI,EphermalPubKeyRegistryContractAddress);
 
-      // Send the transaction to set the stealth address
-      const tx = await contract.methods.setStealthAddress(account.address).send({ from: userAddress });
+      // Send the transaction to add ephermal pub key
+      const tx = await ephermalPubKeyRegistryContract.methods.addPubKey(ephermalKey).send({ from: userAddress });
 
       console.log(`Transaction hash: ${tx.transactionHash}`);
 
@@ -103,10 +85,10 @@ const Receiver: React.FC = () => {
       const receipt = await web3.eth.getTransactionReceipt(tx.transactionHash);
       console.log(`Transaction confirmed in block: ${receipt.blockNumber}`);
 
-      alert("Stealth address set successfully!");
+      alert("Ephermal pub key set successfully!");
     } catch (error) {
-      console.error("Error setting stealth address:", error);
-      alert("Failed to set stealth address. Check console for details.");
+      console.error("Error publishing ephermal pubkey:", error);
+      alert("Failed to add ephermal pub key. Check console for details.");
     }
   };
   
@@ -114,10 +96,19 @@ const Receiver: React.FC = () => {
   return (
     <div className="receiver-container">
       <div className="receiver-card">
-        <h1 className="header">Generate Stealth Meta-Address</h1>
-        <button className="generate-btn" onClick={handleGenerateAccount}>
-          Generate Stealth Meta-Address
-        </button>
+        <h1 className="header">Generate Ephermal Pub Key</h1>
+        <div >
+            <input
+            type="text"
+            id="myTextbox"
+            placeholder="Enter address where you want to send funds"
+            value={address}
+            onChange={(e) => setAddress(e.target.value)} // Update state on input change
+            />    
+            <button className="generate-ephermal-btn" onClick={handleGenerateEphermalPubKey}>
+            Generate Ephermal PubKey
+            </button>
+        </div>
         {account.privateKey && (
           <div className="account-info">
             <div className="account-section">
@@ -130,7 +121,7 @@ const Receiver: React.FC = () => {
               />
             </div>
             <div className="account-section">
-              <h2>Public Address:</h2>
+              <h2>Ephermal pub key:</h2>
               <textarea
                 value={account.address}
                 readOnly
@@ -138,8 +129,8 @@ const Receiver: React.FC = () => {
                 className="account-textarea"
               />
             </div>
-            <button className="send-btn" onClick={handleSendMetaAddress}>
-              Send Meta Address to Contract
+            <button className="send-btn" onClick={handleSendEphermalPubKey}>
+              Send Ephermal pubkey to Contract
             </button>
             {transactionStatus && (
               <div className="status-message">{transactionStatus}</div>
@@ -147,14 +138,8 @@ const Receiver: React.FC = () => {
           </div>
         )}
       </div>
-      <div className="get-ephermals-card">
-      <h1 className="header"> Get all ephermal keys </h1>
-        <button className="get-ephermal-btn" onClick={handleGetEphermalKeys}>
-          Get all ephermal keys
-        </button>
-      </div>
     </div>
   );
 };
 
-export default Receiver;
+export default Sender;
