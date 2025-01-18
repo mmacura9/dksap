@@ -2,9 +2,13 @@ const hre = require("hardhat");
 
 async function main() {
     const StealthAddressRegistry = await hre.ethers.getContractFactory("StealthAddressRegistry");
-    const contract = await StealthAddressRegistry.deploy();
+    const ensContract = await StealthAddressRegistry.deploy();
 
-    console.log("Contract deployed to:", contract.target); // Use `target` to get the address
+    const EphemeralPubKeyRegistry = await hre.ethers.getContractFactory("EphemeralPubKeyRegistry");
+    const ephermalKeyRegistryContract = await EphemeralPubKeyRegistry.deploy(); 
+
+    console.log("ENS ontract deployed to:", ensContract.target); // Use `target` to get the address
+    console.log("Ephermal pubkey contract deployed to:", ephermalKeyRegistryContract.target);
 }
 
 main()
