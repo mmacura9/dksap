@@ -34,7 +34,8 @@ const Home: React.FC = () => {
     }
   };
 
-  const disconnect = () => {
+  const disconnect = async () => {
+    await sdk?.disconnect()
     setAccount(undefined);
     localStorage.removeItem('account'); // Clear the account from localStorage
   };
