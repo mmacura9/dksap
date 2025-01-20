@@ -5,18 +5,26 @@ import { useNavigate } from 'react-router-dom';
 import { ethers } from "ethers"; 
 import { ensContractABI } from '../ABI/ensContractABI';
 import { ephermalPubKeyRegistryContractABI } from '../ABI/ephermalPubKeyRegistryABI';
+import {ec, curve} from 'elliptic';
+import { keccak256 } from 'ethers';
+import * as ethUtil from 'ethereumjs-util'; 
+import { calculateSpendingAddress } from '../utils/addressUtils';
+
+// Use the secp256k1 curve
+const ellipticCurve = new ec('secp256k1');
 
 // Example of smart contract ABI and address (replace these with your actual values)
 
 // ENS contract address
-const ENSContractAddress = "0x3dc3251A1CeAFb50ce6CC107262668B75983c06B";
-const EphermalPubKeyRegistryContractAddress = "0xD0c1CD72CAEe16b7c488Aa6B9185b5fd219EC45C";
+const ENSContractAddress = "0x3D9b6cC7F9523da3986166daB36138D40ba276B2";
+const EphermalPubKeyRegistryContractAddress = "0xcEFffb6b5BC579b954eC1053A9DffcA7125d883d";
 
 const Sender: React.FC = () => {
   const [account, setAccount] = useState<any>({ privateKey: '', address: '' });
   const [ephermalKey, setEphermalKey] = useState('');
   const [address, setAddress] = useState('');
   const [transactionStatus, setTransactionStatus] = useState<string>('');
+  const [stealthAddress,setStealthAddress] = useState('');
   const web3 = new Web3();
 
   const navigate = useNavigate(); // Initialize the navigate hook
@@ -29,12 +37,29 @@ const Sender: React.FC = () => {
     }
   }, [navigate]);
 
-  const handleGenerateEphermalPubKey = () => {
+  const handleGenerateEphermalPubKey = async () => {
     if (!address) {
       alert('Please enter a valid address.');
       return;
     }
     try {
+      
+      const web3 = new Web3(window.ethereum);
+
+      await window.ethereum.request({ method: "eth_requestAccounts" });
+
+      const accounts = await web3.eth.getAccounts();
+      const userAddress = accounts[0];
+
+      // Connect to MetaMask
+      const ensContract = new web3.eth.Contract(ensContractABI,ENSContractAddress);
+
+      // Get stealth address associated with key
+      const stealthPublicAddress = await ensContract.methods.getStealthAddress(address).call();
+      console.log("Stealth Address:", stealthPublicAddress);
+      setStealthAddress(stealthPublicAddress?.toString() ?? '');
+      alert("Stealth address read successfully!");
+
       // Generate ephemeral key pair using ethers.js
       const ephermalAccount = web3.eth.accounts.create();
       const ephermalPublicKey = ephermalAccount.address;
@@ -48,6 +73,11 @@ const Sender: React.FC = () => {
     } catch (error) {
       console.error('Error generating ephemeral key:', error);
     }
+  };
+
+  const generateAccount = (): any => {
+    const newAccount = web3.eth.accounts.create();
+    return newAccount;
   };
 
   const handleSendEphermalPubKey = async () => {
@@ -76,16 +106,37 @@ const Sender: React.FC = () => {
       // Connect to MetaMask
       const ephermalPubKeyRegistryContract = new web3.eth.Contract(ephermalPubKeyRegistryContractABI,EphermalPubKeyRegistryContractAddress);
 
-      // Send the transaction to add ephermal pub key
-      const tx = await ephermalPubKeyRegistryContract.methods.addPubKey(ephermalKey).send({ from: userAddress });
+      // // Send the transaction to add ephermal pub key
+      // const tx = await ephermalPubKeyRegistryContract.methods.addPubKey(ephermalKey).send({ from: userAddress });
 
-      console.log(`Transaction hash: ${tx.transactionHash}`);
+      // console.log(`Transaction hash: ${tx.transactionHash}`);  
 
-      // Optionally, wait for the transaction receipt
-      const receipt = await web3.eth.getTransactionReceipt(tx.transactionHash);
-      console.log(`Transaction confirmed in block: ${receipt.blockNumber}`);
+      // // Optionally, wait for the transaction receipt
+      // const receipt = await web3.eth.getTransactionReceipt(tx.transactionHash);
+      // console.log(`Transaction confirmed in block: ${receipt.blockNumber}`);
 
-      alert("Ephermal pub key set successfully!");
+      // alert("Ephermal pub key set successfully!");
+      
+      
+      const ephermalKeyBasePoint = ellipticCurve.keyFromPrivate(ephermalKey, 'hex');
+      console.log('EK: ' + ephermalKeyBasePoint);
+      const stealthAddressBasePoint = ellipticCurve.keyFromPublic(stealthAddress, 'hex').getPublic();
+      console.log('SA:' + stealthAddressBasePoint);
+
+      const P = calculateSpendingAddress(ephermalKeyBasePoint.getPrivate(),stealthAddressBasePoint, stealthAddressBasePoint);
+      console.log('Address for sedning money: ' + P);
+
+      const tx = {
+                  from: userAddress,
+                  to: P,
+                  value: web3.utils.toWei('0.0000001', 'ether'),  // Send all balance
+                  gas: 2000000,
+                  gasPrice: await web3.eth.getGasPrice(),
+                };
+      const sentTx = await web3.eth.sendTransaction(tx);
+      
+      console.log(`Transaction successful with hash: ${sentTx.transactionHash}`);
+
     } catch (error) {
       console.error("Error publishing ephermal pubkey:", error);
       alert("Failed to add ephermal pub key. Check console for details.");
@@ -141,5 +192,6 @@ const Sender: React.FC = () => {
     </div>
   );
 };
+
 
 export default Sender;

@@ -2,33 +2,32 @@
 pragma solidity ^0.8.0;
 
 contract StealthAddressRegistry {
-    // Mapping from public address to stealth meta-address
-    mapping(address => address) private publicToStealth;
+    // Mapping from public address to stealth public key (stored as two 32-byte parts)
+    mapping(address => bytes32[2]) private publicToStealth;
 
     // Events
-    event StealthAddressSet(address indexed publicAddress, address indexed stealthAddress);
-    event StealthAddressRemoved(address indexed publicAddress);
+    event StealthKeySet(address indexed publicAddress, bytes32[2] stealthKey);
+    event StealthKeyRemoved(address indexed publicAddress);
 
-    // Set a stealth meta-address for a public address
-    function setStealthAddress(address stealthAddress) external {
-        require(stealthAddress != address(0), "Stealth address cannot be zero address");
+    // Set a stealth public key (64 bytes) for the sender's public address
+    function setStealthKey(bytes32 part1, bytes32 part2) external {
+        // Store the 64-byte key in two bytes32 parts
+        publicToStealth[msg.sender] = [part1, part2];
 
-        publicToStealth[msg.sender] = stealthAddress;
-
-        emit StealthAddressSet(msg.sender, stealthAddress);
+        emit StealthKeySet(msg.sender, [part1, part2]);
     }
 
-    // Get the stealth address associated with a public address
-    function getStealthAddress(address publicAddress) external view returns (address) {
+    // Get the stealth public key associated with a public address
+    function getStealthKey(address publicAddress) external view returns (bytes32[2] memory) {
         return publicToStealth[publicAddress];
     }
 
-    // Remove the stealth address mapping for the sender's public address
-    function removeStealthAddress() external {
-        require(publicToStealth[msg.sender] != address(0), "No stealth address set for caller");
+    // Remove the stealth key mapping for the sender's public address
+    function removeStealthKey() external {
+        require(publicToStealth[msg.sender][0] != bytes32(0), "No stealth key set for caller");
 
         delete publicToStealth[msg.sender];
 
-        emit StealthAddressRemoved(msg.sender);
+        emit StealthKeyRemoved(msg.sender);
     }
 }

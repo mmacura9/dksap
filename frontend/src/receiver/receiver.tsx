@@ -5,15 +5,19 @@ import { useNavigate } from 'react-router-dom';
 import { ensContractABI } from '../ABI/ensContractABI';
 import { ephermalPubKeyRegistryContractABI } from '../ABI/ephermalPubKeyRegistryABI';
 import { ethers } from "ethers"; 
+import {ec} from "elliptic"
+import { calculateSpendingAddress, calculateSpendingAddressPrivateKey, checkBalance, getAddressFromPublicKey } from '../utils/addressUtils';
+const ellipticCurve = new ec('secp256k1');
 
 // Example of smart contract ABI and address (replace these with your actual values)
 
 // ENS contract address
-const contractAddress = "0x3dc3251A1CeAFb50ce6CC107262668B75983c06B";
-const EphermalPubKeyRegistryContractAddress = "0xD0c1CD72CAEe16b7c488Aa6B9185b5fd219EC45C";
+const contractAddress = "0x3D9b6cC7F9523da3986166daB36138D40ba276B2";
+const EphermalPubKeyRegistryContractAddress = "0xcEFffb6b5BC579b954eC1053A9DffcA7125d883d";
 
 const Receiver: React.FC = () => {
   const [account, setAccount] = useState<any>({ privateKey: '', address: '' });
+  const [stealth, setStealth] = useState('');
   const [transactionStatus, setTransactionStatus] = useState<string>('');
   const web3 = new Web3();
 
@@ -33,12 +37,19 @@ const Receiver: React.FC = () => {
   };
 
   const handleGenerateAccount = () => {
-    console.log(localStorage.getItem('account'));
     const newAccount = generateAccount();
+    console.log('Ethereum Address:', newAccount.address);
+    console.log('Private Key:', newAccount.privateKey);
+
+    // Extract the public key (G * m)
+    const keyPair = ellipticCurve.keyFromPrivate(newAccount.privateKey.slice(2), 'hex');
+    const publicKey = keyPair.getPublic(false,'hex'); // This is G * m
+    console.log('Public Key (G * m)/stealth address:', '0x'+publicKey);
+    setStealth('0x'+publicKey);
     setAccount(newAccount);
   };
 
-  const handleGetEphermalKeys = async () => {
+  const handleGenerateSpendingKey = async () => {
     try {
       if (typeof window.ethereum === "undefined") {
         throw new Error("MetaMask is not installed");
@@ -59,8 +70,40 @@ const Receiver: React.FC = () => {
   
       // Call the contract method to fetch all ephemeral keys
       const ephemeralKeys = await contract.methods.getPubKeys().call({ from: userAddress });
-  
+
+      const m = ellipticCurve.keyFromPrivate(account.privateKey, 'hex').getPrivate();
       console.log("Ephemeral Keys:", ephemeralKeys);
+
+      if (Array.isArray(ephemeralKeys)) {
+        for (let i = 0; i < ephemeralKeys.length; i++) {
+            const R = ellipticCurve.keyFromPublic(ephemeralKeys[i], 'hex').getPublic();
+            const M = ellipticCurve.keyFromPublic(stealth, 'hex').getPublic();
+            const currentP = calculateSpendingAddress(m,R,M);
+            const ehtereumAddressP = getAddressFromPublicKey(currentP);
+            const balanceAtP = await checkBalance(ehtereumAddressP ?? '');
+            console.log(`Balance for address ${ehtereumAddressP}: ${balanceAtP} ETH`);
+            if (parseFloat(balanceAtP) > 0 ) {
+              const tx = {
+                from: currentP,
+                to: account.address,
+                value: web3.utils.toWei(balanceAtP, 'ether'),  // Send all balance
+                gas: 2000000,
+                gasPrice: await web3.eth.getGasPrice(),
+              };
+              
+              const p = calculateSpendingAddressPrivateKey(m,R,m);
+              // Sign the transaction using the private key
+              const signedTx = await web3.eth.accounts.signTransaction(tx, p);
+        
+              // Send the transaction
+              const sentTx = await web3.eth.sendSignedTransaction(signedTx.rawTransaction);
+              
+              console.log(`Transaction successful with hash: ${sentTx.transactionHash}`);
+            } else {
+              console.log('Insufficient balance to send funds');
+            }
+          }
+        }
     } catch (error) {
       console.error("Error fetching ephemeral keys:", error);
       alert("Failed to fetch ephemeral keys. Check console for details.");
@@ -95,7 +138,7 @@ const Receiver: React.FC = () => {
       const contract = new web3.eth.Contract(ensContractABI, contractAddress);
 
       // Send the transaction to set the stealth address
-      const tx = await contract.methods.setStealthAddress(account.address).send({ from: userAddress });
+      const tx = await contract.methods.setStealthAddress(stealth).send({ from: userAddress });
 
       console.log(`Transaction hash: ${tx.transactionHash}`);
 
@@ -132,7 +175,7 @@ const Receiver: React.FC = () => {
             <div className="account-section">
               <h2>Public Address:</h2>
               <textarea
-                value={account.address}
+                value={stealth}
                 readOnly
                 rows={5}
                 className="account-textarea"
@@ -148,9 +191,9 @@ const Receiver: React.FC = () => {
         )}
       </div>
       <div className="get-ephermals-card">
-      <h1 className="header"> Get all ephermal keys </h1>
-        <button className="get-ephermal-btn" onClick={handleGetEphermalKeys}>
-          Get all ephermal keys
+      <h1 className="header"> Generate spending key </h1>
+        <button className="get-ephermal-btn" onClick={handleGenerateSpendingKey}>
+          Generate spending key
         </button>
       </div>
     </div>
