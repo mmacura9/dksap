@@ -4,12 +4,18 @@ export const ensContractABI = [
     "inputs": [
       {
         "indexed": true,
-        "internalType": "string",
+        "internalType": "address",
         "name": "publicAddress",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "stealthKey",
         "type": "string"
       }
     ],
-    "name": "StealthAddressRemoved",
+    "name": "StealthKeySet",
     "type": "event"
   },
   {
@@ -17,29 +23,23 @@ export const ensContractABI = [
     "inputs": [
       {
         "indexed": true,
-        "internalType": "string",
+        "internalType": "address",
         "name": "publicAddress",
-        "type": "string"
-      },
-      {
-        "indexed": true,
-        "internalType": "string",
-        "name": "stealthAddress",
-        "type": "string"
+        "type": "address"
       }
     ],
-    "name": "StealthAddressSet",
+    "name": "StealthKeyRemoved",
     "type": "event"
   },
   {
     "inputs": [
       {
-        "internalType": "string",
+        "internalType": "address",
         "name": "publicAddress",
-        "type": "string"
+        "type": "address"
       }
     ],
-    "name": "getStealthAddress",
+    "name": "getStealthKey",
     "outputs": [
       {
         "internalType": "string",
@@ -52,7 +52,7 @@ export const ensContractABI = [
   },
   {
     "inputs": [],
-    "name": "removeStealthAddress",
+    "name": "removeStealthKey",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -61,11 +61,11 @@ export const ensContractABI = [
     "inputs": [
       {
         "internalType": "string",
-        "name": "stealthAddress",
+        "name": "stealthKey",
         "type": "string"
       }
     ],
-    "name": "setStealthAddress",
+    "name": "setStealthKey",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"

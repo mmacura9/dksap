@@ -10,6 +10,7 @@ const web3 = new Web3();
 // Calculate shared secret
 const calculateSharedSecret = (r: BN, M: curve.base.BasePoint): curve.base.BasePoint => {
     const S = M.mul(r);  // Scalar multiplication: r * M
+    console.log('S:',S.encode('hex',false))
     return S;
 };
 
@@ -39,7 +40,7 @@ export const calculateSpendingAddress = (r: BN, M: curve.base.BasePoint, T: curv
 export const getAddressFromPublicKey = (publicKey: string) => {
     const pubKeyHex = publicKey // .encode('hex');  // Encode public key in hex
     const address = web3?.utils?.sha3(pubKeyHex)?.slice(-40);  // Keccak-256 hash and take last 20 bytes
-    return address;
+    return '0x'+address;
 }
 
 export const checkBalance = async (address: string) => {
