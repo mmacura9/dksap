@@ -22,6 +22,7 @@ const EphermalPubKeyRegistryContractAddress = "0xcEFffb6b5BC579b954eC1053A9DffcA
 
 const Sender: React.FC = () => {
   const [account, setAccount] = useState<any>({ privateKey: '', address: '' });
+  const [fundsToSend, setFundsToSend] = useState('0');
   const [ephermalKey, setEphermalKey] = useState('');
   const [address, setAddress] = useState('');
   const [transactionStatus, setTransactionStatus] = useState<string>('');
@@ -65,23 +66,17 @@ const Sender: React.FC = () => {
       const ephermalAccount = web3.eth.accounts.create();
       const keyPair = ellipticCurve.keyFromPrivate(ephermalAccount.privateKey.slice(2), 'hex');
       const ephermalPublicKey = '0x' + keyPair.getPublic(false,'hex');
-      //const ephermalPublicKey = '0xB95cdEAC24EA06a1B73b903bcAfB8baE094972F6';
-
-      // console.log('Ephemeral Private Key:', ephermalAccount.privateKey);
-      console.log('Ephemeral Public Key:', ephermalPublicKey);
-
+    
       // Save the ephemeral key locally for use in transactions
       setEphermalKey(ephermalPublicKey);
       setAccount({ privateKey: ephermalAccount.privateKey, address: ephermalAccount.address });
 
-      // setEphermalKey('0xB95cdEAC24EA06a1B73b903bcAfB8baE094972F6');
-      // setAccount({ privateKey: '0x912e0479b1dc3de4d9b8033a3f60caffdca32c259f39ccdfb02ffcbfb7214cf3', address: '0xB95cdEAC24EA06a1B73b903bcAfB8baE094972F6' });
     } catch (error) {
       console.error('Error generating ephemeral key:', error);
     }
   };
 
-  const handleSendEphermalPubKey = async () => {
+  const handleSendEphermalPubKeyAndSendFunds = async () => {
     try {
       if (!account.address) {
         setTransactionStatus('Error: No account address generated.');
@@ -104,33 +99,28 @@ const Sender: React.FC = () => {
       const accounts = await web3.eth.getAccounts();
       const userAddress = accounts[0];
 
-      // // Connect to MetaMask
-      // const ephermalPubKeyRegistryContract = new web3.eth.Contract(ephermalPubKeyRegistryContractABI,EphermalPubKeyRegistryContractAddress);
+      // Connect to MetaMask
+      const ephermalPubKeyRegistryContract = new web3.eth.Contract(ephermalPubKeyRegistryContractABI,EphermalPubKeyRegistryContractAddress);
 
-      // // Send the transaction to add ephermal pub key
-      // const txEphermal = await ephermalPubKeyRegistryContract.methods.addPubKey(ephermalKey).send({ from: userAddress });
+      // Send the transaction to add ephermal pub key
+      const txEphermal = await ephermalPubKeyRegistryContract.methods.addPubKey(ephermalKey).send({ from: userAddress });
 
-      // console.log(`Transaction hash: ${txEphermal.transactionHash}`);  
+      console.log(`Transaction hash: ${txEphermal.transactionHash}`);  
 
-      // // Optionally, wait for the transaction receipt
-      // const receipt = await web3.eth.getTransactionReceipt(txEphermal.transactionHash);
-      // console.log(`Transaction confirmed in block: ${receipt.blockNumber}`);
+      // Optionally, wait for the transaction receipt
+      const receipt = await web3.eth.getTransactionReceipt(txEphermal.transactionHash);
+      console.log(`Transaction confirmed in block: ${receipt.blockNumber}`);
 
-      // alert("Ephermal pub key set successfully!");
-      
-      
-      const ephermalKeyBasePoint = ellipticCurve.keyFromPrivate(ephermalKey, 'hex');
-      console.log('Stealth address', stealthAddress)
+      alert("Ephermal pub key set successfully!");
+            
       const stealthAddressBasePoint = ellipticCurve.keyFromPublic(stealthAddress.slice(2), 'hex').getPublic();
 
       const P = calculateSpendingAddress(new BN(account.privateKey.slice(2),16),stealthAddressBasePoint, stealthAddressBasePoint);
-      console.log('PK for P: ',P);
-      console.log('Address for sedning money: ' + getAddressFromPublicKey(P));
 
       const tx = {
                   from: userAddress,
                   to: getAddressFromPublicKey(P),
-                  value: web3.utils.toWei('0.0000001', 'ether'),  // Send all balance
+                  value: web3.utils.toWei(fundsToSend, 'ether'),  // Send all balance
                   gas: 2000000,
                   gasPrice: await web3.eth.getGasPrice(),
                 };
@@ -181,8 +171,17 @@ const Sender: React.FC = () => {
                 className="account-textarea"
               />
             </div>
-            <button className="send-btn" onClick={handleSendEphermalPubKey}>
-              Send Ephermal pubkey to Contract
+            <input
+              type="text"
+              id="myTextbox"
+              placeholder="Enter private key of your stealth address"
+              value={fundsToSend}
+              onChange={(e) => {
+                setFundsToSend(e.target.value);
+              }} // Update state on input change
+            />   
+            <button className="send-btn" onClick={handleSendEphermalPubKeyAndSendFunds}>
+              Send Ephermal pubkey to Contract and Send funds to the address
             </button>
             {transactionStatus && (
               <div className="status-message">{transactionStatus}</div>
