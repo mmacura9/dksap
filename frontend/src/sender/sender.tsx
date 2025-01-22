@@ -171,6 +171,8 @@ const Sender: React.FC = () => {
                 className="account-textarea"
               />
             </div>
+            <div className="account-section">
+            <h2>Funds to send:</h2>
             <input
               type="text"
               id="myTextbox"
@@ -186,6 +188,7 @@ const Sender: React.FC = () => {
             {transactionStatus && (
               <div className="status-message">{transactionStatus}</div>
             )}
+            </div>
           </div>
         )}
       </div>
