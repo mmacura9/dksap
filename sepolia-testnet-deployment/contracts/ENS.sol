@@ -2,33 +2,33 @@
 pragma solidity ^0.8.0;
 
 contract StealthAddressRegistry {
-    // Mapping from public address to stealth meta-address
-    mapping(address => address) private publicToStealth;
+    // Mapping from public address to stealth public key (stored as a string)
+    mapping(address => string) private publicToStealth;
 
     // Events
-    event StealthAddressSet(address indexed publicAddress, address indexed stealthAddress);
-    event StealthAddressRemoved(address indexed publicAddress);
+    event StealthKeySet(address indexed publicAddress, string stealthKey);
+    event StealthKeyRemoved(address indexed publicAddress);
 
-    // Set a stealth meta-address for a public address
-    function setStealthAddress(address stealthAddress) external {
-        require(stealthAddress != address(0), "Stealth address cannot be zero address");
+    // Set a stealth public key (64 bytes as a string) for the sender's public address
+    function setStealthKey(string calldata stealthKey) external {
+        //require(bytes(stealthKey).length == 64, "Stealth key must be 64 bytes long");
 
-        publicToStealth[msg.sender] = stealthAddress;
+        publicToStealth[msg.sender] = stealthKey;
 
-        emit StealthAddressSet(msg.sender, stealthAddress);
+        emit StealthKeySet(msg.sender, stealthKey);
     }
 
-    // Get the stealth address associated with a public address
-    function getStealthAddress(address publicAddress) external view returns (address) {
+    // Get the stealth public key associated with a public address
+    function getStealthKey(address publicAddress) external view returns (string memory) {
         return publicToStealth[publicAddress];
     }
 
-    // Remove the stealth address mapping for the sender's public address
-    function removeStealthAddress() external {
-        require(publicToStealth[msg.sender] != address(0), "No stealth address set for caller");
+    // Remove the stealth key mapping for the sender's public address
+    function removeStealthKey() external {
+        require(bytes(publicToStealth[msg.sender]).length > 0, "No stealth key set for caller");
 
         delete publicToStealth[msg.sender];
 
-        emit StealthAddressRemoved(msg.sender);
+        emit StealthKeyRemoved(msg.sender);
     }
 }
