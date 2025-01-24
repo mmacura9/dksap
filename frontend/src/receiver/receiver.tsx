@@ -1,19 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import Web3 from 'web3';
-import './receiver.css';
-import { useNavigate } from 'react-router-dom';
 import { ensContractABI } from '../ABI/ensContractABI';
 import { ephermalPubKeyRegistryContractABI } from '../ABI/ephermalPubKeyRegistryABI';
-import { ethers } from "ethers"; 
 import {ec} from "elliptic"
 import { calculateSpendingAddress, calculateSpendingAddressPrivateKey, checkBalance, generatePublicKeyFromPrivate, getAddressFromPublicKey} from '../utils/addressUtils';
 import BN from 'bn.js';
-import * as dotenv from "dotenv";
-// dotenv.config({path: "../sepolia-testnet-deployment/.env"});
 
 const ellipticCurve = new ec('secp256k1');
-
-// Example of smart contract ABI and address (replace these with your actual values)
 
 // ENS contract address
 const contractAddress = "0xBfE39EbfD24c3bAA72dd2819564B8054c360F127";
@@ -21,10 +14,11 @@ const EphermalPubKeyRegistryContractAddress = "0xcEFffb6b5BC579b954eC1053A9DffcA
 
 const Receiver: React.FC = () => {
   const [account, setAccount] = useState<any>({ privateKey: '', address: '' });
+  const [viweingAddress, setViweingAddress] = useState<any>({ privateKey: '', address: '' });
   const [userAddress, setUserAddress] = useState('');
   const [stealth, setStealth] = useState('');
   const [completeStealth, setCompleteStealth] = useState<{ privateStealth: string, publicStealth: string }>({
-    privateStealth: '', // corrected typo here
+    privateStealth: '',
     publicStealth: ''
   });
   const [transactionStatus, setTransactionStatus] = useState<string>('');
@@ -33,29 +27,30 @@ const Receiver: React.FC = () => {
   const [spendingKeyForTransaction,setSpendingKeyForTransaction] = useState<string>('');
   const [fundsForTransaction,setFundsForTransaction] = useState<string>('');
 
-
   const web3 = new Web3(process.env.REACT_APP_SEPOLIA_URL);
 
-  const navigate = useNavigate(); // Initialize the navigate hook
-
-  // Load the account from localStorage on initial render
-  useEffect(() => {
-    const savedAccount = localStorage.getItem('account');
-    if (!savedAccount) {
-      navigate('/'); // Replace '/receiver' with the appropriate route
+  const checkConnection = async () => {
+    if (typeof window.ethereum === "undefined") {
+      throw new Error("MetaMask is not installed");
     }
-  }, [navigate]);
 
+    const web3 = new Web3(window.ethereum);
+
+    // Get accounts and set the first account as the user address
+    const accounts = await web3.eth.getAccounts();
+    console.log(accounts);
+    if (!accounts.length) {
+      return [];
+    }
+    return accounts;
+  };
 
   useEffect(() => {
     const fetchAccount = async () => {
-      const web3 = new Web3(window.ethereum);
-
-      // Request accounts from the user
-      await window.ethereum.request({ method: 'eth_requestAccounts' });
-
-      // Get accounts and set the first account as the user address
-      const accounts = await web3.eth.getAccounts();
+      const accounts = await checkConnection();
+      if (!accounts.length) {
+        return;
+      }
       setUserAddress(accounts[0]);
     };
 
@@ -70,10 +65,12 @@ const Receiver: React.FC = () => {
   const handleGenerateAccount = () => {
     const newAccount = generateAccount();
     const publicKey = generatePublicKeyFromPrivate(newAccount.privateKey)
+    const newViewingAccount = generateAccount();
+    const newViewingKey = generatePublicKeyFromPrivate(newViewingAccount.privateKey);
     
     setStealth(publicKey);
-    //setStealth(publicKey);
     setAccount(newAccount);
+    setViweingAddress(newViewingAccount);
   };
 
   const handleGenerateSpendingKey = async () => {
@@ -81,14 +78,11 @@ const Receiver: React.FC = () => {
       if (typeof window.ethereum === "undefined") {
         throw new Error("MetaMask is not installed");
       }
-  
-      const web3 = new Web3(window.ethereum);
-  
-      await window.ethereum.request({ method: "eth_requestAccounts" });
-  
-      const accounts = await web3.eth.getAccounts();
-      const userAddress = accounts[0];
-  
+
+      if (userAddress === '') {
+        throw new Error("No accounts found");
+      }
+      
       // Connect to the contract
       const contract = new web3.eth.Contract(
         ephermalPubKeyRegistryContractABI,
@@ -137,11 +131,13 @@ const Receiver: React.FC = () => {
         return;
       }
   
-      const savedAccount = localStorage.getItem('account');
-      if (!savedAccount) {
-        setTransactionStatus('Error: No account found in localStorage.');
+      const listAccounts = await checkConnection();
+      console.log(listAccounts);
+      if (listAccounts.length === 0) {
+        setTransactionStatus('Error: No account found.');
         return;
       }
+      const userAddress = listAccounts[0];
       if (typeof window.ethereum === "undefined") {
         throw new Error("MetaMask is not installed");
       }
@@ -150,8 +146,9 @@ const Receiver: React.FC = () => {
 
       await window.ethereum.request({ method: "eth_requestAccounts" });
 
-      const accounts = await web3.eth.getAccounts();
-      setUserAddress(accounts[0]);
+      if (userAddress === '') {
+        throw new Error("No accounts found");
+      }
 
       // Connect to MetaMask
       const contract = new web3.eth.Contract(ensContractABI, contractAddress);
@@ -217,40 +214,56 @@ const Receiver: React.FC = () => {
         <button className="generate-btn" onClick={handleGenerateAccount}>
           Generate Stealth Meta-Address
         </button>
-        {account.privateKey && (
-          <div className="account-info">
-            <div className="account-section">
-              <h2>Private Key:</h2>
-              <textarea
-                value={account.privateKey}
-                readOnly
-                rows={5}
-                className="account-textarea"
-              />
-            </div>
-            <div className="account-section">
-              <h2>Public Address:</h2>
-              <textarea
-                value={stealth}
-                readOnly
-                rows={5}
-                className="account-textarea"
-              />
-            </div>
-            <button className="send-btn" onClick={handleSendMetaAddress}>
-              Send Meta Address to Contract
-            </button>
-            {transactionStatus && (
-              <div className="status-message">{transactionStatus}</div>
-            )}
+        
+        <div className="account-info">
+          <div className="account-section">
+            <h3>Private Key:</h3>
+            <textarea
+              value={account.privateKey || ""}
+              readOnly
+              rows={2}
+              className="account-textarea"
+            />
           </div>
-        )}
-      </div>
-      <div className="get-ephermals-card">
+          <div className="account-section">
+            <h3>Public Address:</h3>
+            <textarea
+              value={stealth}
+              readOnly
+              rows={4}
+              className="account-textarea"
+            />
+          </div>
+          <div className="account-section">
+            <h3>Private Viewing Key:</h3>
+            <textarea
+              value={account.privateKey}
+              readOnly
+              rows={2}
+              className="account-textarea"
+            />
+          </div>
+          <div className="account-section">
+            <h3>Public Viewing Address:</h3>
+            <textarea
+              value={stealth}
+              readOnly
+              rows={4}
+              className="account-textarea"
+            />
+          </div>
+          <button className="send-btn" onClick={handleSendMetaAddress}>
+            Send Meta Address to Contract
+          </button>
+          {transactionStatus && (
+            <div className="status-message">{transactionStatus}</div>
+          )}
+        </div>
+        <div className="get-ephermals-card">
       <h1 className="header"> Generate spending key </h1>
         <input
           type="text"
-          id="myTextbox"
+          className="myTextbox"
           placeholder="Enter private key of your stealth address"
           value={completeStealth.privateStealth}
           onChange={(e) => {
@@ -276,7 +289,7 @@ const Receiver: React.FC = () => {
       <h1 className="header"> Transfer funds with spending key </h1>
         <input
           type="text"
-          id="myTextbox1"
+          className="myTextbox"
           placeholder="Enter your private spending key"
           value={spendingKeyForTransaction}
           onChange={(e) => {
@@ -284,7 +297,7 @@ const Receiver: React.FC = () => {
         />   
         <input
           type="text"
-          id="myTextbox2"
+          className="myTextbox"
           placeholder="Enter amount you want to send with your spending key"
           value={fundsForTransaction}
           onChange={(e) => {
@@ -292,7 +305,7 @@ const Receiver: React.FC = () => {
         /> 
         <input
           type="text"
-          id="myTextbox3"
+          className="myTextbox"
           placeholder="Enter where you want to send funds"
           value={sendingAddress}
           onChange={(e) => {
@@ -303,6 +316,8 @@ const Receiver: React.FC = () => {
           Send funds with your private spending key
         </button>
       </div>
+      </div>
+      
     </div>
   );
 };
