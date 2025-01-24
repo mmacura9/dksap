@@ -1,13 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import Web3 from 'web3';
-import './sender.css';
-import { useNavigate } from 'react-router-dom';
-import { ethers } from "ethers"; 
 import { ensContractABI } from '../ABI/ensContractABI';
 import { ephermalPubKeyRegistryContractABI } from '../ABI/ephermalPubKeyRegistryABI';
-import {ec, curve} from 'elliptic';
-import { keccak256 } from 'ethers';
-import * as ethUtil from 'ethereumjs-util'; 
+import {ec} from 'elliptic';
 import { calculateSpendingAddress, getAddressFromPublicKey } from '../utils/addressUtils';
 import BN from 'bn.js';
 
@@ -28,16 +23,6 @@ const Sender: React.FC = () => {
   const [transactionStatus, setTransactionStatus] = useState<string>('');
   const [stealthAddress,setStealthAddress] = useState('');
   const web3 = new Web3();
-
-  const navigate = useNavigate(); // Initialize the navigate hook
-
-  // Load the account from localStorage on initial render
-  useEffect(() => {
-    const savedAccount = localStorage.getItem('account');
-    if (!savedAccount) {
-      navigate('/'); // Replace '/receiver' with the appropriate route
-    }
-  }, [navigate]);
 
   const handleGenerateEphermalPubKey = async () => {
     if (!address) {
@@ -142,7 +127,7 @@ const Sender: React.FC = () => {
         <div >
             <input
             type="text"
-            id="myTextbox"
+            className="myTextbox"
             placeholder="Enter address where you want to send funds"
             value={address}
             onChange={(e) => setAddress(e.target.value)} // Update state on input change
