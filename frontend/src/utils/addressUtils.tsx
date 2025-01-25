@@ -7,13 +7,22 @@ import * as dotenv from 'dotenv';
 // Assuming elliptic curve and types are set up
 const ellipticCurve = new ec('secp256k1');
 
-const web3 = new Web3(process.env.REACT_APP_SEPOLIA_URL);
 
 // Calculate shared secret
 const calculateSharedSecret = (r: BN, M: curve.base.BasePoint): curve.base.BasePoint => {
     const S = M.mul(r);  // Scalar multiplication: r * M
     return S;
 };
+
+const generateWeb3 = () => {
+    if (!window.ethereum) {
+        alert('Please install MetaMask first.');
+        throw new Error('MetaMask not found');
+    }
+    return new Web3(window.ethereum);
+}
+export const web3 = generateWeb3();
+
 
 // Calculate the point P = M + G * hash(S)
 export const calculateSpendingAddress = (r: BN, M: curve.base.BasePoint, T: curve.base.BasePoint): string => {

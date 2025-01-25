@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import Web3 from 'web3';
 import { ensContractABI } from '../ABI/ensContractABI';
 import { ephermalPubKeyRegistryContractABI } from '../ABI/ephermalPubKeyRegistryABI';
 import {ec} from 'elliptic';
 import { calculateSpendingAddress, getAddressFromPublicKey } from '../utils/addressUtils';
 import BN from 'bn.js';
+import { web3 } from '../utils/addressUtils';
 
 // Use the secp256k1 curve
 const ellipticCurve = new ec('secp256k1');
@@ -23,7 +23,6 @@ const Sender: React.FC = () => {
   const [transactionStatus, setTransactionStatus] = useState<string>('');
   const [stealthAddress, setStealthAddress] = useState('');
   const [viewingKey, setViewingKey] = useState('');
-  const web3 = new Web3();
 
   const handleGenerateEphermalPubKey = async () => {
     if (!address) {
@@ -31,9 +30,6 @@ const Sender: React.FC = () => {
       return;
     }
     try {
-      
-      const web3 = new Web3(window.ethereum);
-
       await window.ethereum.request({ method: "eth_requestAccounts" });
 
       const accounts = await web3.eth.getAccounts();
@@ -89,8 +85,6 @@ const Sender: React.FC = () => {
       if (typeof window.ethereum === "undefined") {
         throw new Error("MetaMask is not installed");
       }
-
-      const web3 = new Web3(window.ethereum);
 
       await window.ethereum.request({ method: "eth_requestAccounts" });
 

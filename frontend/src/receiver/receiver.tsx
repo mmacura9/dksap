@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import Web3 from 'web3';
+// import Web3 from 'web3';
 import { ensContractABI } from '../ABI/ensContractABI';
 import { ephermalPubKeyRegistryContractABI } from '../ABI/ephermalPubKeyRegistryABI';
 import {ec} from "elliptic"
 import { calculateSpendingAddress, calculateSpendingAddressPrivateKey, checkBalance, generatePublicKeyFromPrivate, getAddressFromPublicKey} from '../utils/addressUtils';
 import BN from 'bn.js';
+import { web3 } from '../utils/addressUtils';
 
 const ellipticCurve = new ec('secp256k1');
 function sleep(ms: number) {
@@ -14,6 +15,7 @@ function sleep(ms: number) {
 // ENS contract address
 const contractAddress = "0x8E374082e2d4d84f4e1a7F233936b5e1fa1CcA6e";
 const EphermalPubKeyRegistryContractAddress = "0xcEFffb6b5BC579b954eC1053A9DffcA7125d883d";
+
 
 const Receiver: React.FC = () => {
   const [account, setAccount] = useState<any>({ privateKey: '', address: '' });
@@ -31,14 +33,10 @@ const Receiver: React.FC = () => {
   const [spendingKeyForTransaction,setSpendingKeyForTransaction] = useState<string>('');
   const [fundsForTransaction,setFundsForTransaction] = useState<string>('');
 
-  const web3 = new Web3(process.env.REACT_APP_SEPOLIA_URL);
-
   const checkConnection = async () => {
     if (typeof window.ethereum === "undefined") {
       throw new Error("MetaMask is not installed");
     }
-
-    const web3 = new Web3(window.ethereum);
 
     // Get accounts and set the first account as the user address
     const accounts = await web3.eth.getAccounts();
@@ -88,7 +86,11 @@ const Receiver: React.FC = () => {
         throw new Error("No accounts found");
       }
 
-      const web3 = new Web3(window.ethereum);
+      const chainId = await window.ethereum.request({
+        method: 'eth_chainId',
+      });
+
+      console.log("CHAIN_ID: ", chainId);
       
       // Connect to the contract
       const contract = new web3.eth.Contract(
@@ -117,7 +119,7 @@ const Receiver: React.FC = () => {
       
       if (Array.isArray(ephemeralKeys)) {
           for (let i=ephemeralKeys.length-1; i>=0; i--) {
-            await sleep(1000);
+            await sleep(100);
             const ephemeral = ephemeralKeys[i];
             if (ephemeral.length < 66) {
               continue;
@@ -168,8 +170,6 @@ const Receiver: React.FC = () => {
       if (typeof window.ethereum === "undefined") {
         throw new Error("MetaMask is not installed");
       }
-
-      const web3 = new Web3(window.ethereum);
 
       await window.ethereum.request({ method: "eth_requestAccounts" });
 

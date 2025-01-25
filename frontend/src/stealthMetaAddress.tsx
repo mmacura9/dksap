@@ -1,10 +1,8 @@
 import React, { useState } from 'react';
-import Web3 from 'web3';
-
+import { web3 } from './utils/addressUtils';
 
 
 const StealthMetaAddress: React.FC = () => {
-  const web3 = new Web3();
 
   // Function to generate random private key
   const generateAccount = (): any => {
