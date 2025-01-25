@@ -7,15 +7,9 @@ export const ensContractABI = [
         "internalType": "address",
         "name": "publicAddress",
         "type": "address"
-      },
-      {
-        "indexed": false,
-        "internalType": "string",
-        "name": "stealthKey",
-        "type": "string"
       }
     ],
-    "name": "StealthKeySet",
+    "name": "KeyPairRemoved",
     "type": "event"
   },
   {
@@ -26,9 +20,21 @@ export const ensContractABI = [
         "internalType": "address",
         "name": "publicAddress",
         "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "metaStealthKey",
+        "type": "string"
+      },
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "viewingKey",
+        "type": "string"
       }
     ],
-    "name": "StealthKeyRemoved",
+    "name": "KeyPairSet",
     "type": "event"
   },
   {
@@ -39,11 +45,16 @@ export const ensContractABI = [
         "type": "address"
       }
     ],
-    "name": "getStealthKey",
+    "name": "getKeyPair",
     "outputs": [
       {
         "internalType": "string",
-        "name": "",
+        "name": "metaStealthKey",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "viewingKey",
         "type": "string"
       }
     ],
@@ -51,8 +62,27 @@ export const ensContractABI = [
     "type": "function"
   },
   {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "publicAddress",
+        "type": "address"
+      }
+    ],
+    "name": "hasKeyPair",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
     "inputs": [],
-    "name": "removeStealthKey",
+    "name": "removeKeyPair",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -61,11 +91,16 @@ export const ensContractABI = [
     "inputs": [
       {
         "internalType": "string",
-        "name": "stealthKey",
+        "name": "metaStealthKey",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "viewingKey",
         "type": "string"
       }
     ],
-    "name": "setStealthKey",
+    "name": "setKeyPair",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
