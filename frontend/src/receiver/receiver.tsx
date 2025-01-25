@@ -85,35 +85,23 @@ const Receiver: React.FC = () => {
       if (userAddress === '') {
         throw new Error("No accounts found");
       }
-
-      const chainId = await window.ethereum.request({
-        method: 'eth_chainId',
-      });
-
-      console.log("CHAIN_ID: ", chainId);
       
       // Connect to the contract
       const contract = new web3.eth.Contract(
         ephermalPubKeyRegistryContractABI,
         EphermalPubKeyRegistryContractAddress
       );
-      console.log(contract);
       // Call the contract method to fetch all ephemeral keys
-      console.log(userAddress);
       const estimatedGas = await contract.methods.getPubKeys().estimateGas();
-      console.log(estimatedGas);
       const ephemeralKeys : string [] = await contract.methods.getPubKeys().call(
         { 
           from: userAddress, 
           gas: estimatedGas.toString(),  // Use the estimated gas for accuracy
           gasPrice: web3.utils.toWei('10', 'gwei'),
         });
-      console.log(ephemeralKeys);
-      console.log(viewingAddress)
 
       const v = new BN(viewingAddress.privateKey.slice(2), 16);
       const V = ellipticCurve.keyFromPublic(viewingAddress.publicKey.slice(2), 'hex').getPublic();
-      console.log("V: ", V);
       const m = new BN(completeStealth.privateStealth.slice(2), 16);
       const M = ellipticCurve.keyFromPublic(completeStealth.publicStealth.slice(2), 'hex').getPublic();
       
@@ -124,15 +112,10 @@ const Receiver: React.FC = () => {
             if (ephemeral.length < 66) {
               continue;
             }
-            console.log(`Ephemeral key: ${ephemeral}`);
             const R = ellipticCurve.keyFromPublic(ephemeral.slice(2), 'hex').getPublic();
             
-            console.log("Public keys calculated");
-            console.log("v: ", v);
             const P = calculateSpendingAddress(v, M, R);
-            console.log("Spending key calculated");
             const ehtereumAddressP = getAddressFromPublicKey(P);
-            console.log(`Ethereum address for spending key: ${ehtereumAddressP}`);
             const balanceAtP = await checkBalance(ehtereumAddressP ?? '');
             console.log(`Balance for address ${ehtereumAddressP}: ${balanceAtP} ETH`);
             const balanceAtPFloat = parseFloat(balanceAtP);
@@ -140,7 +123,6 @@ const Receiver: React.FC = () => {
             if (balanceAtPFloat > 0) {
               const p = calculateSpendingAddressPrivateKey(m, R, m);
               setGeneratedSpendingKey(p);
-              
             } else {
               console.log('Insufficient balance to send funds');
             }
