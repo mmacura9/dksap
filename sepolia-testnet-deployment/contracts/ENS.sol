@@ -2,33 +2,51 @@
 pragma solidity ^0.8.0;
 
 contract StealthAddressRegistry {
-    // Mapping from public address to stealth public key (stored as a string)
-    mapping(address => string) private publicToStealth;
+    // Struct to store both the meta-stealth key and viewing key
+    struct KeyPair {
+        string metaStealthKey; // The stealth public key
+        string viewingKey;     // The viewing key
+    }
+
+    // Mapping from public address to their KeyPair
+    mapping(address => KeyPair) private addressToKeys;
 
     // Events
-    event StealthKeySet(address indexed publicAddress, string stealthKey);
-    event StealthKeyRemoved(address indexed publicAddress);
+    event KeyPairSet(address indexed publicAddress, string metaStealthKey, string viewingKey);
+    event KeyPairRemoved(address indexed publicAddress);
 
-    // Set a stealth public key (64 bytes as a string) for the sender's public address
-    function setStealthKey(string calldata stealthKey) external {
-        //require(bytes(stealthKey).length == 64, "Stealth key must be 64 bytes long");
+    // Set both the meta-stealth key and viewing key for the sender's public address
+    function setKeyPair(string calldata metaStealthKey, string calldata viewingKey) external {
+        addressToKeys[msg.sender] = KeyPair(metaStealthKey, viewingKey);
 
-        publicToStealth[msg.sender] = stealthKey;
-
-        emit StealthKeySet(msg.sender, stealthKey);
+        emit KeyPairSet(msg.sender, metaStealthKey, viewingKey);
     }
 
-    // Get the stealth public key associated with a public address
-    function getStealthKey(address publicAddress) external view returns (string memory) {
-        return publicToStealth[publicAddress];
+    // Get the meta-stealth key and viewing key associated with a public address
+    function getKeyPair(address publicAddress) 
+        external 
+        view 
+        returns (string memory metaStealthKey, string memory viewingKey) 
+    {
+        KeyPair memory keys = addressToKeys[publicAddress];
+        return (keys.metaStealthKey, keys.viewingKey);
     }
 
-    // Remove the stealth key mapping for the sender's public address
-    function removeStealthKey() external {
-        require(bytes(publicToStealth[msg.sender]).length > 0, "No stealth key set for caller");
 
-        delete publicToStealth[msg.sender];
+    // Remove the meta-stealth key and viewing key for the sender's public address
+    function removeKeyPair() external {
+        require(
+            bytes(addressToKeys[msg.sender].metaStealthKey).length > 0,
+            "No key pair set for caller"
+        );
 
-        emit StealthKeyRemoved(msg.sender);
+        delete addressToKeys[msg.sender];
+
+        emit KeyPairRemoved(msg.sender);
+    }
+
+    // Optional: Check if a public address has a key pair set (without exposing details)
+    function hasKeyPair(address publicAddress) external view returns (bool) {
+        return bytes(addressToKeys[publicAddress].metaStealthKey).length > 0;
     }
 }
