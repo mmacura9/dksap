@@ -10,7 +10,7 @@ const ellipticCurve = new ec('secp256k1');
 const web3 = new Web3(process.env.REACT_APP_SEPOLIA_URL);
 
 // Calculate shared secret
-const calculateSharedSecret = (r: BN, M: curve.base.BasePoint): curve.base.BasePoint => {
+export const calculateSharedSecret = (r: BN, M: curve.base.BasePoint): curve.base.BasePoint => {
     const S = M.mul(r);  // Scalar multiplication: r * M
     return S;
 };
@@ -73,6 +73,9 @@ export const calculateSpendingAddressPrivateKey = (r: BN, M: curve.base.BasePoin
 };
 
 export const generatePublicKeyFromPrivate =  (privateKey:string) : string => {
+    if (privateKey.trim() === '')
+        return '';
+
     const privateKeySliced = privateKey.startsWith('0x') ? privateKey.slice(2) : privateKey; 
     const keyPair = ellipticCurve.keyFromPrivate(privateKeySliced, 'hex');
     const publicKey = keyPair.getPublic(false,'hex'); // This is G * m

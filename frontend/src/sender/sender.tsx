@@ -3,7 +3,7 @@ import Web3 from 'web3';
 import { ensContractABI } from '../ABI/ensContractABI';
 import { ephermalPubKeyRegistryContractABI } from '../ABI/ephermalPubKeyRegistryABI';
 import {ec} from 'elliptic';
-import { calculateSpendingAddress, getAddressFromPublicKey } from '../utils/addressUtils';
+import { calculateSharedSecret, calculateSpendingAddress, getAddressFromPublicKey } from '../utils/addressUtils';
 import BN from 'bn.js';
 
 // Use the secp256k1 curve
@@ -87,8 +87,11 @@ const Sender: React.FC = () => {
       // Connect to MetaMask
       const ephermalPubKeyRegistryContract = new web3.eth.Contract(ephermalPubKeyRegistryContractABI,EphermalPubKeyRegistryContractAddress);
 
+      const stealthAddressBasePoint = ellipticCurve.keyFromPublic(stealthAddress.slice(2), 'hex').getPublic();
+      const sharedSecret = calculateSharedSecret(new BN(account.privateKey.slice(2),16),stealthAddressBasePoint);
+      const viewTag = new TextEncoder().encode(sharedSecret.getX().toString('hex'))[0];
       // Send the transaction to add ephermal pub key
-      const txEphermal = await ephermalPubKeyRegistryContract.methods.addPubKey(ephermalKey).send({ from: userAddress });
+      const txEphermal = await ephermalPubKeyRegistryContract.methods.addPubKey(ephermalKey + ',' + viewTag).send({ from: userAddress });
 
       console.log(`Transaction hash: ${txEphermal.transactionHash}`);  
 
@@ -97,8 +100,6 @@ const Sender: React.FC = () => {
       console.log(`Transaction confirmed in block: ${receipt.blockNumber}`);
 
       alert("Ephermal pub key set successfully!");
-            
-      const stealthAddressBasePoint = ellipticCurve.keyFromPublic(stealthAddress.slice(2), 'hex').getPublic();
 
       const P = calculateSpendingAddress(new BN(account.privateKey.slice(2),16),stealthAddressBasePoint, stealthAddressBasePoint);
 

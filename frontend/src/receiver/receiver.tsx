@@ -1,10 +1,17 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, ReactNode } from 'react';
 import Web3 from 'web3';
 import { ensContractABI } from '../ABI/ensContractABI';
 import { ephermalPubKeyRegistryContractABI } from '../ABI/ephermalPubKeyRegistryABI';
 import {ec} from "elliptic"
-import { calculateSpendingAddress, calculateSpendingAddressPrivateKey, checkBalance, generatePublicKeyFromPrivate, getAddressFromPublicKey} from '../utils/addressUtils';
+import { calculateSharedSecret, calculateSpendingAddress, calculateSpendingAddressPrivateKey, checkBalance, generatePublicKeyFromPrivate, getAddressFromPublicKey} from '../utils/addressUtils';
 import BN from 'bn.js';
+
+interface RecieverProps {
+  children?: ReactNode;
+  setRetrievalPopUp: React.Dispatch<React.SetStateAction<boolean>>;
+  setCreateMnemonic: React.Dispatch<React.SetStateAction<boolean>>;
+}
+
 
 const ellipticCurve = new ec('secp256k1');
 
@@ -12,7 +19,7 @@ const ellipticCurve = new ec('secp256k1');
 const contractAddress = "0xBfE39EbfD24c3bAA72dd2819564B8054c360F127";
 const EphermalPubKeyRegistryContractAddress = "0xcEFffb6b5BC579b954eC1053A9DffcA7125d883d";
 
-const Receiver: React.FC = () => {
+const Receiver: React.FC <RecieverProps> = ({children,setRetrievalPopUp, setCreateMnemonic}) => {
   const [account, setAccount] = useState<any>({ privateKey: '', address: '' });
   const [viweingAddress, setViweingAddress] = useState<any>({ privateKey: '', address: '' });
   const [userAddress, setUserAddress] = useState('');
@@ -90,17 +97,24 @@ const Receiver: React.FC = () => {
       );
   
       // Call the contract method to fetch all ephemeral keys
-      const ephemeralKeys : string [] = await contract.methods.getPubKeys().call({ from: userAddress });
+      const ephemeralKeysAndViewTags : string [] = await contract.methods.getPubKeys().call({ from: userAddress });
 
       const m = new BN(completeStealth.privateStealth.slice(2),16);
       
-      if (Array.isArray(ephemeralKeys)) {
-        for (let i = 0; i < ephemeralKeys.length; i++) {
-            if (ephemeralKeys[i].length < 66) {
+      if (Array.isArray(ephemeralKeysAndViewTags)) {
+        for (let i = 0; i < ephemeralKeysAndViewTags.length; i++) {
+            const ephermalKey = ephemeralKeysAndViewTags[i].split('')[0];
+            const viewTag = ephemeralKeysAndViewTags[i].split('')[1];
+
+            const R = ellipticCurve.keyFromPublic(ephermalKey.slice(2), 'hex').getPublic();
+            const M = ellipticCurve.keyFromPublic(completeStealth.publicStealth.slice(2), 'hex').getPublic();
+
+            const S =calculateSharedSecret(m,R);
+            const currentViewTag = new TextEncoder().encode(S.getX().toString('hex'))[0].toString();
+            
+            if (currentViewTag !== viewTag) {
               continue;
             }
-            const R = ellipticCurve.keyFromPublic(ephemeralKeys[i].slice(2), 'hex').getPublic();
-            const M = ellipticCurve.keyFromPublic(completeStealth.publicStealth.slice(2), 'hex').getPublic();
 
             const currentP = calculateSpendingAddress(m,R,M);
             const ehtereumAddressP = getAddressFromPublicKey(currentP);
@@ -166,11 +180,17 @@ const Receiver: React.FC = () => {
       console.log(`Transaction confirmed in block: ${receipt.blockNumber}`);
 
       alert("Stealth address set successfully!");
+      
+      setCreateMnemonic(true);
     } catch (error) {
       console.error("Error setting stealth address:", error);
       alert("Failed to set stealth address. Check console for details.");
     }
   };
+
+  const handleForgotPrivateKey = async () => {
+    setRetrievalPopUp(true);
+  }
   
   const handleUseSpendingKey = async () => {
     try {
@@ -276,6 +296,9 @@ const Receiver: React.FC = () => {
         <button className="get-ephermal-btn" onClick={handleGenerateSpendingKey}>
           Generate spending key
         </button>
+        <div onClick={handleForgotPrivateKey} className="forgot-link">
+          Forgot private stealth keys?
+        </div>
         {generatedSpendingKey ??
         <div>
           <h2>Spending key for given private stealth address</h2>

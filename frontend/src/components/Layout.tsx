@@ -1,7 +1,14 @@
 import React, { useState, useEffect, ReactNode } from "react";
 import { useSDK } from "@metamask/sdk-react";
+import './Layout.css';
 
-const Layout: React.FC<{ children?: ReactNode }> = ({ children }) => {
+interface LayoutProps {
+  children?: ReactNode;
+  setRetrievalPopUp: React.Dispatch<React.SetStateAction<boolean>>;
+  setCreateMnemonic: React.Dispatch<React.SetStateAction<boolean>>;
+}
+
+const Layout: React.FC<LayoutProps> = ({ children, setRetrievalPopUp, setCreateMnemonic }) => {
   const [account, setAccount] = useState<string | undefined>();
   const { sdk, connected, chainId } = useSDK();
 
@@ -35,22 +42,36 @@ const Layout: React.FC<{ children?: ReactNode }> = ({ children }) => {
     localStorage.removeItem('account'); // Clear the account from localStorage
   };
 
+  const handleRetrieve = async () => {
+    setRetrievalPopUp(true)
+  }
+
+  const handleCreateMnemonic = async() => {
+    setCreateMnemonic(true);
+  }
+
   return (
     <div className="button-container">
       {!connected ? (
-        <button className="connect-button" onClick={connect}>
+        <button className="connect-button-layout" onClick={connect}>
           Connect MetaMask
         </button>
       ) : (
         <>
-          <p className="connection-info">
+          {/* <p className="connection-info">
             {chainId && <span>Connected chain: {chainId}</span>}
           </p>
           <p className="connection-info">
             {account && <span>Connected account: {account}</span>}
-          </p>
-          <button className="connect-button" onClick={disconnect}>
+          </p> */}
+          <button className="connect-button-layout" onClick={disconnect}>
             Disconnect
+          </button>
+          <button className="connect-button-layout" onClick={handleRetrieve}>
+            Retrieve private stealth keys
+          </button>
+          <button className="connect-button-layout" onClick={handleCreateMnemonic}>
+            Add key recovery mechanism
           </button>
         </>
       )}
