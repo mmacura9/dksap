@@ -7,7 +7,6 @@ import * as dotenv from 'dotenv';
 // Assuming elliptic curve and types are set up
 const ellipticCurve = new ec('secp256k1');
 
-const web3 = new Web3(process.env.REACT_APP_SEPOLIA_URL);
 
 // Calculate shared secret
 const calculateSharedSecret = (r: BN, M: curve.base.BasePoint): curve.base.BasePoint => {
@@ -15,9 +14,19 @@ const calculateSharedSecret = (r: BN, M: curve.base.BasePoint): curve.base.BaseP
     return S;
 };
 
+const generateWeb3 = () => {
+    if (!window.ethereum) {
+        alert('Please install MetaMask first.');
+        throw new Error('MetaMask not found');
+    }
+    return new Web3(window.ethereum);
+}
+export const web3 = generateWeb3();
+
+
 // Calculate the point P = M + G * hash(S)
 export const calculateSpendingAddress = (r: BN, M: curve.base.BasePoint, T: curve.base.BasePoint): string => {
-    const S = calculateSharedSecret(r,M);
+    const S = calculateSharedSecret(r, T);
     const SxHex = S.getX().toString('hex');  // Get X coordinate of S and convert to hex
     const hashOfS = keccak256(Buffer.from(SxHex, 'hex'));  // Keccak256 hash of S
 
@@ -31,7 +40,7 @@ export const calculateSpendingAddress = (r: BN, M: curve.base.BasePoint, T: curv
     const GHashS = G.mul(hashScalar);
 
     // Finally, calculate P = M + G * hash(S)
-    const P = T.add(GHashS);  // Point addition: M + G * hash(S)
+    const P = M.add(GHashS);  // Point addition: M + G * hash(S)
     return P.encode('hex',false);
 };
 

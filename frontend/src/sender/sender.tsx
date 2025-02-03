@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import Web3 from 'web3';
 import { ensContractABI } from '../ABI/ensContractABI';
 import { ephermalPubKeyRegistryContractABI } from '../ABI/ephermalPubKeyRegistryABI';
 import {ec} from 'elliptic';
 import { calculateSpendingAddress, getAddressFromPublicKey } from '../utils/addressUtils';
 import BN from 'bn.js';
+import { web3 } from '../utils/addressUtils';
 
 // Use the secp256k1 curve
 const ellipticCurve = new ec('secp256k1');
@@ -12,7 +12,7 @@ const ellipticCurve = new ec('secp256k1');
 // Example of smart contract ABI and address (replace these with your actual values)
 
 // ENS contract address
-const ENSContractAddress = "0xBfE39EbfD24c3bAA72dd2819564B8054c360F127";
+const ENSContractAddress = "0x8E374082e2d4d84f4e1a7F233936b5e1fa1CcA6e";
 const EphermalPubKeyRegistryContractAddress = "0xcEFffb6b5BC579b954eC1053A9DffcA7125d883d";
 
 const Sender: React.FC = () => {
@@ -21,8 +21,8 @@ const Sender: React.FC = () => {
   const [ephermalKey, setEphermalKey] = useState('');
   const [address, setAddress] = useState('');
   const [transactionStatus, setTransactionStatus] = useState<string>('');
-  const [stealthAddress,setStealthAddress] = useState('');
-  const web3 = new Web3();
+  const [stealthAddress, setStealthAddress] = useState('');
+  const [viewingKey, setViewingKey] = useState('');
 
   const handleGenerateEphermalPubKey = async () => {
     if (!address) {
@@ -30,9 +30,6 @@ const Sender: React.FC = () => {
       return;
     }
     try {
-      
-      const web3 = new Web3(window.ethereum);
-
       await window.ethereum.request({ method: "eth_requestAccounts" });
 
       const accounts = await web3.eth.getAccounts();
@@ -42,9 +39,21 @@ const Sender: React.FC = () => {
       const ensContract = new web3.eth.Contract(ensContractABI,ENSContractAddress);
 
       // Get stealth key associated with reciever
-      const stealthPublicAddress = await ensContract.methods.getStealthKey(address).call();
-      console.log("Stealth Address:", stealthPublicAddress);
-      setStealthAddress(stealthPublicAddress?.toString() ?? '');
+      const keyPairFromContract: {
+        0: string;
+        1: string;
+        __length__: number;
+        metaStealthKey: string;
+        viewingKey: string;
+      } = await ensContract.methods.getKeyPair(address).call();
+      console.log("Stealth Address:", keyPairFromContract);
+      console.log("Stealth Address Length:", keyPairFromContract.__length__);
+      if (keyPairFromContract.__length__ !== 2) {
+        alert('Not correct length of stealth address and viewing key' + keyPairFromContract.__length__);
+        return;
+      }
+      setStealthAddress(keyPairFromContract.metaStealthKey ?? '');
+      setViewingKey(keyPairFromContract.viewingKey ?? '');
       alert("Stealth address read successfully!");
 
       // Generate ephemeral key pair using ethers.js
@@ -77,8 +86,6 @@ const Sender: React.FC = () => {
         throw new Error("MetaMask is not installed");
       }
 
-      const web3 = new Web3(window.ethereum);
-
       await window.ethereum.request({ method: "eth_requestAccounts" });
 
       const accounts = await web3.eth.getAccounts();
@@ -99,8 +106,9 @@ const Sender: React.FC = () => {
       alert("Ephermal pub key set successfully!");
             
       const stealthAddressBasePoint = ellipticCurve.keyFromPublic(stealthAddress.slice(2), 'hex').getPublic();
+      const viewingKeyBasePoint = ellipticCurve.keyFromPublic(viewingKey.slice(2), 'hex').getPublic();
 
-      const P = calculateSpendingAddress(new BN(account.privateKey.slice(2),16),stealthAddressBasePoint, stealthAddressBasePoint);
+      const P = calculateSpendingAddress(new BN(account.privateKey.slice(2),16), stealthAddressBasePoint, viewingKeyBasePoint);
 
       const tx = {
                   from: userAddress,
@@ -110,6 +118,7 @@ const Sender: React.FC = () => {
                   gasPrice: await web3.eth.getGasPrice(),
                 };
       const sentTx = await web3.eth.sendTransaction(tx);
+      console.log("public address: ", getAddressFromPublicKey(P))
       
       console.log(`Transaction successful with hash: ${sentTx.transactionHash}`);
 
@@ -160,7 +169,7 @@ const Sender: React.FC = () => {
             <h2>Funds to send:</h2>
             <input
               type="text"
-              id="myTextbox"
+              className="myTextbox"
               placeholder="Enter private key of your stealth address"
               value={fundsToSend}
               onChange={(e) => {

@@ -7,7 +7,7 @@ async function main() {
     const EphemeralPubKeyRegistry = await hre.ethers.getContractFactory("EphemeralPubKeyRegistry");
     const ephermalKeyRegistryContract = await EphemeralPubKeyRegistry.deploy(); 
 
-    console.log("ENS ontract deployed to:", ensContract.target); // Use `target` to get the address
+    console.log("ENS contract deployed to:", ensContract.target); // Use `target` to get the address
     console.log("Ephermal pubkey contract deployed to:", ephermalKeyRegistryContract.target);
 }
 
