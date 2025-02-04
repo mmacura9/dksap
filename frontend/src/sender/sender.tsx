@@ -98,7 +98,7 @@ const Sender: React.FC = () => {
       const sharedSecret = calculateSharedSecret(new BN(account.privateKey.slice(2),16),stealthAddressBasePoint);
       const viewTag = new TextEncoder().encode(sharedSecret.getX().toString('hex'))[0];
       // Send the transaction to add ephermal pub key
-      const txEphermal = await ephermalPubKeyRegistryContract.methods.addPubKey(ephermalKey + ',' + viewTag).send({ from: userAddress });
+      const txEphermal = await ephermalPubKeyRegistryContract.methods.addPubKeyAndTag(ephermalKey, viewTag).send({ from: userAddress });
 
       console.log(`Transaction hash: ${txEphermal.transactionHash}`);  
 

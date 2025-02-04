@@ -7,32 +7,48 @@ export const ephermalPubKeyRegistryContractABI = [
         "internalType": "string",
         "name": "pubKey",
         "type": "string"
+      },
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "tag",
+        "type": "string"
       }
     ],
-    "name": "PubKeyAdded",
+    "name": "PubKeyAndTagAdded",
     "type": "event"
   },
   {
     "inputs": [
       {
         "internalType": "string",
-        "name": "pubKey",
+        "name": "publicKey",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "viewTag",
         "type": "string"
       }
     ],
-    "name": "addPubKey",
+    "name": "addPubKeyAndTag",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
   },
   {
     "inputs": [],
-    "name": "getPubKeyCount",
+    "name": "getKeysAndTags",
     "outputs": [
       {
-        "internalType": "uint256",
+        "internalType": "string[]",
         "name": "",
-        "type": "uint256"
+        "type": "string[]"
+      },
+      {
+        "internalType": "string[]",
+        "name": "",
+        "type": "string[]"
       }
     ],
     "stateMutability": "view",
@@ -40,12 +56,12 @@ export const ephermalPubKeyRegistryContractABI = [
   },
   {
     "inputs": [],
-    "name": "getPubKeys",
+    "name": "getPubKeyAndTagCount",
     "outputs": [
       {
-        "internalType": "string[]",
+        "internalType": "uint256",
         "name": "",
-        "type": "string[]"
+        "type": "uint256"
       }
     ],
     "stateMutability": "view",

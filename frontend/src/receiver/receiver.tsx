@@ -73,7 +73,15 @@ const Receiver: React.FC <RecieverProps> = ({children,setRetrievalPopUp, setCrea
   const handleGenerateAccount = () => {
     const newAccount = generateAccount();
     const publicKey = generatePublicKeyFromPrivate(newAccount.privateKey)
-    const newViewingAccount = generateAccount();
+    
+    const newViewingAccount = localStorage.getItem('viewingAccount') ?? generateAccount();
+
+    if (!localStorage.getItem('viewingAccount')) {
+      localStorage.setItem('viewingAccount', newViewingAccount);  
+    }  
+
+    console.log('Local storage viewing acc:', localStorage.getItem('viewingAccount'))
+    
     const newViewingKey = generatePublicKeyFromPrivate(newViewingAccount.privateKey);
     
     setStealth(publicKey);
@@ -98,14 +106,16 @@ const Receiver: React.FC <RecieverProps> = ({children,setRetrievalPopUp, setCrea
         EphermalPubKeyRegistryContractAddress
       );
       // Call the contract method to fetch all ephemeral keys
-      const ephemeralKeysAndViewTags : string [] = await contract.methods.getPubKeys().call({ from: userAddress });
-      const estimatedGas = await contract.methods.getPubKeys().estimateGas();
-      const ephemeralKeys : string [] = await contract.methods.getPubKeys().call(
-        { 
-          from: userAddress, 
-          gas: estimatedGas.toString(),  // Use the estimated gas for accuracy
-          gasPrice: web3.utils.toWei('10', 'gwei'),
-        });
+      const estimatedGas = await contract.methods.getKeysAndTags().estimateGas();
+      const result = await contract.methods
+      .getKeysAndTags()
+      .call({ 
+        from: userAddress, 
+        gas: estimatedGas.toString(),  // Use the estimated gas for accuracy
+        gasPrice: web3.utils.toWei('10', 'gwei'),
+      });
+
+      const [ephemeralKeys, viewTags] = result as unknown as [string[], string[]];
 
       const v = new BN(viewingAddress.privateKey.slice(2), 16);
       const V = ellipticCurve.keyFromPublic(viewingAddress.publicKey.slice(2), 'hex').getPublic();
@@ -116,8 +126,7 @@ const Receiver: React.FC <RecieverProps> = ({children,setRetrievalPopUp, setCrea
           for (let i=ephemeralKeys.length-1; i>=0; i--) {
             await sleep(100);
             const ephemeral = ephemeralKeys[i];
-            const ephermalKey = ephemeralKeysAndViewTags[i].split('')[0];
-            const viewTag = ephemeralKeysAndViewTags[i].split('')[1];
+            const viewTag = viewTags[i]
 
             if (ephemeral.length < 66) {
               continue;
