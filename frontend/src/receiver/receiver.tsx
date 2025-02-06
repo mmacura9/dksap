@@ -6,11 +6,14 @@ import {ec} from "elliptic"
 import { calculateSharedSecret, calculateSpendingAddress, calculateSpendingAddressPrivateKey, checkBalance, generatePublicKeyFromPrivate, getAddressFromPublicKey} from '../utils/addressUtils';
 import BN from 'bn.js';
 import { web3 } from '../utils/addressUtils';
+import { ensContractAddress, ephermalKeysContractAddress } from '../constants';
 
 interface RecieverProps {
   children?: ReactNode;
   setRetrievalPopUp: React.Dispatch<React.SetStateAction<boolean>>;
   setCreateMnemonic: React.Dispatch<React.SetStateAction<boolean>>;
+  setChoisePopUp: React.Dispatch<React.SetStateAction<boolean>>;
+  setKeysSet?: React.Dispatch<React.SetStateAction<string>>;
 }
 
 
@@ -19,11 +22,7 @@ function sleep(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-// ENS contract address
-const contractAddress = "0x8E374082e2d4d84f4e1a7F233936b5e1fa1CcA6e";
-const EphermalPubKeyRegistryContractAddress = "0xcEFffb6b5BC579b954eC1053A9DffcA7125d883d";
-
-const Receiver: React.FC <RecieverProps> = ({children,setRetrievalPopUp, setCreateMnemonic}) => {
+const Receiver: React.FC <RecieverProps> = ({children,setRetrievalPopUp, setCreateMnemonic, setKeysSet, setChoisePopUp}) => {
   const [account, setAccount] = useState<any>({ privateKey: '', address: '' });
   const [viewingAddress, setViewingAddress] = useState<any>({ privateKey: '', address: '' });
   const [viewingKey, setViewingKey] = useState('');
@@ -100,22 +99,10 @@ const Receiver: React.FC <RecieverProps> = ({children,setRetrievalPopUp, setCrea
         throw new Error("No accounts found");
       }
       
-      // Connect to the contract
-      const contract = new web3.eth.Contract(
-        ephermalPubKeyRegistryContractABI,
-        EphermalPubKeyRegistryContractAddress
-      );
-      // Call the contract method to fetch all ephemeral keys
-      const estimatedGas = await contract.methods.getKeysAndTags().estimateGas();
-      const result = await contract.methods
-      .getKeysAndTags()
-      .call({ 
-        from: userAddress, 
-        gas: estimatedGas.toString(),  // Use the estimated gas for accuracy
-        gasPrice: web3.utils.toWei('10', 'gwei'),
-      });
-
-      const [ephemeralKeys, viewTags] = result as unknown as [string[], string[]];
+      const result =localStorage.getItem('ephemeralKeyData') ? JSON.parse(localStorage.getItem('ephemeralKeyData') ?? ''): [];
+      const ephemeralKeys: string[] = [];
+      const viewTags: string[] = [];
+      result.foreach((key:string,viewTag:string) => {ephemeralKeys.push(key);viewTags.push(viewTag);})
 
       const v = new BN(viewingAddress.privateKey.slice(2), 16);
       const V = ellipticCurve.keyFromPublic(viewingAddress.publicKey.slice(2), 'hex').getPublic();
@@ -127,10 +114,6 @@ const Receiver: React.FC <RecieverProps> = ({children,setRetrievalPopUp, setCrea
             await sleep(100);
             const ephemeral = ephemeralKeys[i];
             const viewTag = viewTags[i]
-
-            if (ephemeral.length < 66) {
-              continue;
-            }
             
             const R = ellipticCurve.keyFromPublic(ephemeral.slice(2), 'hex').getPublic();
 
@@ -163,6 +146,15 @@ const Receiver: React.FC <RecieverProps> = ({children,setRetrievalPopUp, setCrea
   };
   
 
+  const callSetKeys = async () => {
+    const privateKeyString = account?.privateKey ? account.privateKey : 'No private key';
+    const viewingKeyString = viewingAddress?.privateKey ? viewingAddress.privateKey : 'No viewing key';
+
+    if (setKeysSet) {
+      setKeysSet('private key: '+ privateKeyString + ', viewing key: ' + viewingKeyString);
+    }
+  }
+
   const handleSendMetaAddress = async () => {
     try {
       if (!account.address) {
@@ -187,7 +179,7 @@ const Receiver: React.FC <RecieverProps> = ({children,setRetrievalPopUp, setCrea
         throw new Error("No accounts found");
       }
 
-      const contract = new web3.eth.Contract(ensContractABI, contractAddress);
+      const contract = new web3.eth.Contract(ensContractABI, ensContractAddress);
       console.log(`Sending stealth address to contract: ${stealth}`);
       console.log(`Sending viewing address to contract: ${viewingKey}`);
       const estimatedGas = await contract.methods.setKeyPair(stealth, viewingKey).estimateGas({ from: userAddress });
@@ -205,7 +197,11 @@ const Receiver: React.FC <RecieverProps> = ({children,setRetrievalPopUp, setCrea
 
       alert("Stealth address set successfully!");
       
-      setCreateMnemonic(true);
+      setChoisePopUp(true);
+      callSetKeys();
+
+      setTransactionStatus('');
+    
     } catch (error) {
       console.error("Error setting stealth address:", error);
       alert("Failed to set stealth address. Check console for details.");
@@ -300,7 +296,7 @@ const Receiver: React.FC <RecieverProps> = ({children,setRetrievalPopUp, setCrea
             Send Meta Address to Contract
           </button>
           {transactionStatus && (
-            <div className="status-message">{transactionStatus}</div>
+            <div className="status-message error">{transactionStatus}</div>
           )}
         </div>
         <div className="get-ephermals-card">
@@ -329,20 +325,20 @@ const Receiver: React.FC <RecieverProps> = ({children,setRetrievalPopUp, setCrea
               publicKey: generatePublicKeyFromPrivate(privateKey)});
           }} // Update state on input change
         />
+        {generatedSpendingKey &&
+        <div>
+          <h3>Spending key for given private stealth address</h3>
+          <div className="generated-spending-key">
+              {generatedSpendingKey}
+          </div>
+        </div>
+        }
         <button className="get-ephermal-btn" onClick={handleGenerateSpendingKey}>
           Generate spending key
         </button>
         <div onClick={handleForgotPrivateKey} className="forgot-link">
           Forgot private stealth keys?
         </div>
-        {generatedSpendingKey ??
-        <div>
-          <h2>Spending key for given private stealth address</h2>
-          <div className="generated-spending-key">
-              {generatedSpendingKey}
-          </div>
-        </div>
-        }
       </div>
       <div className="get-transfer-card">
       <h1 className="header"> Transfer funds with spending key </h1>

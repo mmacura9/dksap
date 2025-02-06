@@ -3,17 +3,17 @@ import './MnemoicPhraseCreation.css';
 import * as bip39 from 'bip39';
 import * as crypto from 'crypto';
 
-interface RetrievalProps {
+interface MnemoicPhraseCreationProps {
   children?: ReactNode;
   setCreateMnemonic: React.Dispatch<React.SetStateAction<boolean>>;
+  keysSet?: string;
 }
 
-const RetrievalPopUp: React.FC<RetrievalProps> = ({ children, setCreateMnemonic }) => {
+const MnemoicPhraseCreation: React.FC<MnemoicPhraseCreationProps> = ({ children, setCreateMnemonic, keysSet }) => {
 
-    const [privateKey,setPrivateKey] = useState('');
+    const [privateKey,setPrivateKey] = useState(keysSet ?? '');
     const [generatedMnemoic, setGeneratedMnemoic] = useState(false);
     const [mnemoic,setMnemoic] = useState('');
-
 
     const handleCreateMnemoic = async () => {
         // Generate Mnemonic
@@ -46,7 +46,7 @@ const RetrievalPopUp: React.FC<RetrievalProps> = ({ children, setCreateMnemonic 
     
     return (
         <div className="popup-overlay">
-          <div className="popup-content">
+          <div className="popup-content-mnemoic">
             <h2>Add key recovery mechanism </h2>
             <p>Please enter your private key</p>
             <input
@@ -84,4 +84,4 @@ const RetrievalPopUp: React.FC<RetrievalProps> = ({ children, setCreateMnemonic 
       );
 };
 
-export default RetrievalPopUp;
+export default MnemoicPhraseCreation;

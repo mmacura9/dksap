@@ -7,7 +7,6 @@ import * as dotenv from 'dotenv';
 // Assuming elliptic curve and types are set up
 const ellipticCurve = new ec('secp256k1');
 
-
 // Calculate shared secret
 export const calculateSharedSecret = (r: BN, M: curve.base.BasePoint): curve.base.BasePoint => {
     const S = M.mul(r);  // Scalar multiplication: r * M

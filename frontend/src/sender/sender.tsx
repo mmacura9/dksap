@@ -5,15 +5,10 @@ import {ec} from 'elliptic';
 import { calculateSharedSecret, calculateSpendingAddress, getAddressFromPublicKey } from '../utils/addressUtils';
 import BN from 'bn.js';
 import { web3 } from '../utils/addressUtils';
+import { ensContractAddress, ephermalKeysContractAddress } from '../constants';
 
 // Use the secp256k1 curve
 const ellipticCurve = new ec('secp256k1');
-
-// Example of smart contract ABI and address (replace these with your actual values)
-
-// ENS contract address
-const ENSContractAddress = "0x8E374082e2d4d84f4e1a7F233936b5e1fa1CcA6e";
-const EphermalPubKeyRegistryContractAddress = "0xcEFffb6b5BC579b954eC1053A9DffcA7125d883d";
 
 const Sender: React.FC = () => {
   const [account, setAccount] = useState<any>({ privateKey: '', address: '' });
@@ -36,7 +31,7 @@ const Sender: React.FC = () => {
       const userAddress = accounts[0];
 
       // Connect to MetaMask
-      const ensContract = new web3.eth.Contract(ensContractABI,ENSContractAddress);
+      const ensContract = new web3.eth.Contract(ensContractABI,ensContractAddress);
 
       // Get stealth key associated with reciever
       const keyPairFromContract: {
@@ -92,7 +87,7 @@ const Sender: React.FC = () => {
       const userAddress = accounts[0];
 
       // Connect to MetaMask
-      const ephermalPubKeyRegistryContract = new web3.eth.Contract(ephermalPubKeyRegistryContractABI,EphermalPubKeyRegistryContractAddress);
+      const ephermalPubKeyRegistryContract = new web3.eth.Contract(ephermalPubKeyRegistryContractABI,ephermalKeysContractAddress);
 
       const stealthAddressBasePoint = ellipticCurve.keyFromPublic(stealthAddress.slice(2), 'hex').getPublic();
       const sharedSecret = calculateSharedSecret(new BN(account.privateKey.slice(2),16),stealthAddressBasePoint);

@@ -38,24 +38,6 @@ export const ephermalPubKeyRegistryContractABI = [
   },
   {
     "inputs": [],
-    "name": "getKeysAndTags",
-    "outputs": [
-      {
-        "internalType": "string[]",
-        "name": "",
-        "type": "string[]"
-      },
-      {
-        "internalType": "string[]",
-        "name": "",
-        "type": "string[]"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
     "name": "getPubKeyAndTagCount",
     "outputs": [
       {

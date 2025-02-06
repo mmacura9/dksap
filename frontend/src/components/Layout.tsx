@@ -51,7 +51,7 @@ const Layout: React.FC<LayoutProps> = ({ children, setRetrievalPopUp, setCreateM
   }
 
   return (
-    <div className="button-container">
+    <div className="button-container-layout">
       {!connected ? (
         <button className="connect-button-layout" onClick={connect}>
           Connect MetaMask

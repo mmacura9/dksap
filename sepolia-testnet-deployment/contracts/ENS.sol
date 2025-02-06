@@ -39,23 +39,4 @@ contract StealthAddressRegistry {
         delete addressToKeys[msg.sender];
         emit KeyPairRemoved(msg.sender);
     }
-
-    //  Retrieve all key pairs 
-    function getAllKeyPairs() external view returns (address[] memory, string[] memory, string[] memory) {
-        uint256 length = allAddresses.length;
-        address[] memory addresses = new address[](length);
-        string[] memory metaStealthKeys = new string[](length);
-        string[] memory viewingKeys = new string[](length);
-
-        for (uint256 i = 0; i < length; i++) {
-            address addr = allAddresses[i];
-            KeyPair memory keys = addressToKeys[addr];
-
-            addresses[i] = addr;
-            metaStealthKeys[i] = keys.metaStealthKey;
-            viewingKeys[i] = keys.viewingKey;
-        }
-
-        return (addresses, metaStealthKeys, viewingKeys);
-    }
 }
