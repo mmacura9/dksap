@@ -11,6 +11,7 @@
   import { web3 } from './utils/addressUtils';
   import { ephermalPubKeyRegistryContractABI } from './ABI/ephermalPubKeyRegistryABI';
   import { ensContractAddress, ephermalKeysContractAddress } from './constants';
+import { ensContractABI } from './ABI/ensContractABI';
 
   const App: React.FC = () => {
 
@@ -29,9 +30,15 @@
       const eventListener = contract.events.PubKeyAndTagAdded({
         fromBlock: 'latest',
       })
-        .on('data', (event) => {
-          const publicKey = event.returnValues.publicKey;
-          const viewTag = event.returnValues.viewTag;
+        .on('data', (event:any) => {
+          const { returnValues } = event;
+          if (!returnValues) {
+              console.error("returnValues is undefined");
+              return;
+          }
+
+          const publicKey = returnValues.pubKey;  // Use the event parameter names from Solidity
+          const viewTag = returnValues.tag; 
           console.log("New Public Key Added:", publicKey);
           console.log("View Tag:", viewTag);
   
@@ -41,11 +48,54 @@
           const existingData = localStorage.getItem('ephemeralKeyData') ? JSON.parse(localStorage.getItem('ephemeralKeyData') ?? '') : [];
 
           // Add new data to the array
-          const newData = { publicKey: 'newPublicKey', viewTag: 'newViewTag' };
+          const newData = { publicKey: publicKey, viewTag: viewTag };
           existingData.push(newData);
+          console.log(existingData);
 
           // Save the updated array back to localStorage
           localStorage.setItem('ephemeralKeyData', JSON.stringify(existingData));
+        })
+  
+      // Cleanup listener on component unmount
+      return () => {
+        return;
+      };
+    }, []);
+
+    useEffect(() => {
+      const contract = new web3.eth.Contract(
+        ensContractABI,
+        ensContractAddress
+      );
+      
+      //address indexed publicAddress, string metaStealthKey, string viewingKey
+      // Set up the event listener
+      const eventListener = contract.events.KeyPairSet({
+        fromBlock: 'latest',
+      })
+        .on('data', (event:any) => {
+          const { returnValues } = event;
+          if (!returnValues) {
+              console.error("returnValues is undefined");
+              return;
+          }
+
+          const metaStealthKey = returnValues.metaStealthKey;  // Use the event parameter names from Solidity
+          const viewingKey = returnValues.viewingKey; 
+          console.log("New Meta Stealth Key Added:", metaStealthKey);
+          console.log("New viewing key added:", viewingKey);
+  
+          // You can save the data to localStorage or handle it as needed
+          const data = { metaStealthKey, viewingKey };
+          // Retrieve the existing data from localStorage (if any)
+          const existingData = localStorage.getItem('stealthData') ? JSON.parse(localStorage.getItem('stealthData') ?? '') : [];
+
+          // Add new data to the array
+          const newData = { metaStealthKey: metaStealthKey, viewingKey: viewingKey };
+          existingData.push(newData);
+
+          // Save the updated array back to localStorage
+          localStorage.setItem('stealthData', JSON.stringify(existingData));
         })
   
       // Cleanup listener on component unmount

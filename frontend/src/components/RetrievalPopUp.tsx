@@ -72,11 +72,11 @@ const RetrievalPopUp: React.FC<RetrievalProps> = ({ children, setRetrievalPopUp 
     }
 
     return (
-        <div className="popup-overlay">
-          <div className="popup-content">
+        <div className="popup-overlay-retrieve">
+          <div className="popup-content-retrieve">
             <h2>Key Recovery Mechanism </h2>
             <p>Please enter your phrase</p>
-            <div className="phrase-container">
+            <div className="phrase-container-retrieve">
                 {Array.from({ length: 12 }).map((word, index) => (
                     <input key={index} 
                            type ='text' 
@@ -88,7 +88,7 @@ const RetrievalPopUp: React.FC<RetrievalProps> = ({ children, setRetrievalPopUp 
             </div>
             { privateKey !== '' ?
                 <div>
-                    Your private key is: {privateKey}
+                    {privateKey}
                 </div>
                 : fail &&
                 <p className="warning-text">

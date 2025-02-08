@@ -23,11 +23,12 @@ const generateWeb3 = () => {
 export const web3 = generateWeb3();
 
 
-// Calculate the point P = M + G * hash(S)
-export const calculateSpendingAddress = (r: BN, M: curve.base.BasePoint, T: curve.base.BasePoint): string => {
-    const S = calculateSharedSecret(r, T);
+// Calculate the point P = K + G*hash(r*V) = K + G*hash(R*v)  
+export const calculateSpendingAddress = (r: BN, V: curve.base.BasePoint, K: curve.base.BasePoint): string => {
+    const S = calculateSharedSecret(r, V);
     const SxHex = S.getX().toString('hex');  // Get X coordinate of S and convert to hex
     const hashOfS = keccak256(Buffer.from(SxHex, 'hex'));  // Keccak256 hash of S
+    console.log('hashS: ' + hashOfS);     
 
     // Convert the hash to a BigInteger for scalar multiplication
     const hashScalar = ellipticCurve.keyFromPrivate(hashOfS).getPrivate();
@@ -39,7 +40,7 @@ export const calculateSpendingAddress = (r: BN, M: curve.base.BasePoint, T: curv
     const GHashS = G.mul(hashScalar);
 
     // Finally, calculate P = M + G * hash(S)
-    const P = M.add(GHashS);  // Point addition: M + G * hash(S)
+    const P = K.add(GHashS);  // Point addition: M + G * hash(S)
     return P.encode('hex',false);
 };
 

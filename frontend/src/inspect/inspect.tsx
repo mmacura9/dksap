@@ -1,6 +1,7 @@
 import React, { useEffect, useState, ReactNode } from 'react';
 import Web3 from 'web3';
 import { ensContractABI } from '../ABI/ensContractABI';
+import { ensContractAddress } from '../constants';
 import { ephermalPubKeyRegistryContractABI } from '../ABI/ephermalPubKeyRegistryABI';
 import {ec} from "elliptic"
 import { calculateSharedSecret, calculateSpendingAddress, calculateSpendingAddressPrivateKey, checkBalance, generatePublicKeyFromPrivate, getAddressFromPublicKey, web3} from '../utils/addressUtils';
@@ -11,8 +12,6 @@ interface RecieverProps {
 }
 
 
-// ENS contract address
-const contractENSAddress = "0xBfE39EbfD24c3bAA72dd2819564B8054c360F127";
 
 const Inspect: React.FC <RecieverProps> = ({children}) => {
   
@@ -21,17 +20,12 @@ const Inspect: React.FC <RecieverProps> = ({children}) => {
 
     const handleListAllStealthAddresses = async () => {
       const V = generatePublicKeyFromPrivate(viweingAddress);
-      // Connect to the contract
-      const contract = new web3.eth.Contract(
-        ensContractABI,
-        contractENSAddress
-      );
-      // Call the contract method to fetch all ephemeral keys
-      const result = await contract.methods
-      .getKeysAllKeyPairs()
-      .call();
+      console.log(V);
+      const stealthData = JSON.parse(localStorage.getItem('stealthData') ?? '{}') ?? {};
+      const metaStealthKeys: string[] = [];
+      const viewingKeys: string[] = [];
+      stealthData.forEach((e:any) => {metaStealthKeys.push(e.metaStealthKey); viewingKeys.push(e.viewingKey);}) 
 
-      const [_, metaStealthKeys, viewingKeys] = result as unknown as [string[], string[], string[]];
       const filteredStealthKeys = metaStealthKeys.filter((_,index) => viewingKeys[index] === V);
       setListOfStealthAddresses(filteredStealthKeys);
     }
@@ -56,7 +50,7 @@ const Inspect: React.FC <RecieverProps> = ({children}) => {
             {listOfStealthAddresses.length > 0 ? (
               <ul>
                 {listOfStealthAddresses.map((address, index) => (
-                  <li key={index}>{address}</li>
+                  <li title ={address} key={index}>{address}</li>
                 ))}
               </ul>
             ) : (

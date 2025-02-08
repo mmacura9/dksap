@@ -169,7 +169,15 @@ textarea:focus {
   margin: 5px 0;
   padding: 10px;
   border-radius: 5px;
+  
+  /* Text truncation */
+  white-space: nowrap;         /* Prevents wrapping */
+  overflow: hidden;            /* Hides overflowing content */
+  text-overflow: ellipsis;      /* Adds "..." at the end */
+  
+  cursor: pointer;
 }
+
 
 /* Generated Spending Key Display */
 .generated-spending-key {

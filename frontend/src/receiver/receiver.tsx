@@ -6,7 +6,7 @@ import {ec} from "elliptic"
 import { calculateSharedSecret, calculateSpendingAddress, calculateSpendingAddressPrivateKey, checkBalance, generatePublicKeyFromPrivate, getAddressFromPublicKey} from '../utils/addressUtils';
 import BN from 'bn.js';
 import { web3 } from '../utils/addressUtils';
-import { ensContractAddress, ephermalKeysContractAddress } from '../constants';
+import { chainId, ensContractAddress, ephermalKeysContractAddress } from '../constants';
 
 interface RecieverProps {
   children?: ReactNode;
@@ -45,7 +45,9 @@ const Receiver: React.FC <RecieverProps> = ({children,setRetrievalPopUp, setCrea
 
     // Get accounts and set the first account as the user address
     const accounts = await web3.eth.getAccounts();
+    const network = await web3.eth.getChainId();
     console.log(accounts);
+    console.log(network);
     if (!accounts.length) {
       return [];
     }
@@ -73,13 +75,16 @@ const Receiver: React.FC <RecieverProps> = ({children,setRetrievalPopUp, setCrea
     const newAccount = generateAccount();
     const publicKey = generatePublicKeyFromPrivate(newAccount.privateKey)
     
-    const newViewingAccount = localStorage.getItem('viewingAccount') ?? generateAccount();
+    const storedAccount = localStorage.getItem('viewAccount'); 
+    console.log('storedAcc',storedAccount);
 
-    if (!localStorage.getItem('viewingAccount')) {
-      localStorage.setItem('viewingAccount', newViewingAccount);  
-    }  
+    const newViewingAccount = (storedAccount != null && storedAccount != '') ? JSON.parse(storedAccount) : generateAccount();
+    console.log(newViewingAccount);
 
-    console.log('Local storage viewing acc:', localStorage.getItem('viewingAccount'))
+    if (!storedAccount) {
+      localStorage.setItem('viewAccount', JSON.stringify(newViewingAccount));
+      console.log(localStorage.getItem('viewAccount'))
+    }
     
     const newViewingKey = generatePublicKeyFromPrivate(newViewingAccount.privateKey);
     
@@ -100,39 +105,63 @@ const Receiver: React.FC <RecieverProps> = ({children,setRetrievalPopUp, setCrea
       }
       
       const result =localStorage.getItem('ephemeralKeyData') ? JSON.parse(localStorage.getItem('ephemeralKeyData') ?? ''): [];
+      console.log(result);
       const ephemeralKeys: string[] = [];
       const viewTags: string[] = [];
-      result.foreach((key:string,viewTag:string) => {ephemeralKeys.push(key);viewTags.push(viewTag);})
+
+      for (let i=0; i<result.length;i++) {
+        const currPubKey = result[i].publicKey;
+        const currViewTag = result[i].viewTag;
+
+        if (ephemeralKeys.includes(currPubKey) && viewTags.includes(currViewTag)){
+          continue;
+        }
+
+        ephemeralKeys.push(currPubKey);
+        viewTags.push(currViewTag);
+      }
+
+
+      console.log(ephemeralKeys);
+      console.log(viewTags);
 
       const v = new BN(viewingAddress.privateKey.slice(2), 16);
       const V = ellipticCurve.keyFromPublic(viewingAddress.publicKey.slice(2), 'hex').getPublic();
-      const m = new BN(completeStealth.privateStealth.slice(2), 16);
-      const M = ellipticCurve.keyFromPublic(completeStealth.publicStealth.slice(2), 'hex').getPublic();
+      const k = new BN(completeStealth.privateStealth.slice(2), 16);
+      const K = ellipticCurve.keyFromPublic(completeStealth.publicStealth.slice(2), 'hex').getPublic();
+      console.log(completeStealth.publicStealth);
       
       if (Array.isArray(ephemeralKeys)) {
           for (let i=ephemeralKeys.length-1; i>=0; i--) {
             await sleep(100);
             const ephemeral = ephemeralKeys[i];
             const viewTag = viewTags[i]
+            if (viewTag === 'newViewTag') {
+              continue;
+            }
             
             const R = ellipticCurve.keyFromPublic(ephemeral.slice(2), 'hex').getPublic();
-
-
-            const S =calculateSharedSecret(v,M);
+            const S =calculateSharedSecret(v,R);
+            console.log(S.getX().toString('hex'));
             const currentViewTag = new TextEncoder().encode(S.getX().toString('hex'))[0].toString();
-            
+            console.log(viewTag);
+            console.log(currentViewTag);
+            console.log('K: '+ completeStealth.publicStealth);
+            console.log('v:' + viewingAddress.privateKey);
+            console.log('R: '+ ephemeral);
+
             if (currentViewTag !== viewTag) {
               continue;
             }
             
-            const P = calculateSpendingAddress(v, M, R);
+            const P = calculateSpendingAddress(v, R, K);
             const ehtereumAddressP = getAddressFromPublicKey(P);
             const balanceAtP = await checkBalance(ehtereumAddressP ?? '');
             console.log(`Balance for address ${ehtereumAddressP}: ${balanceAtP} ETH`);
             const balanceAtPFloat = parseFloat(balanceAtP);
             
             if (balanceAtPFloat > 0) {
-              const p = calculateSpendingAddressPrivateKey(m, R, m);
+              const p = calculateSpendingAddressPrivateKey(v, R, k);
               setGeneratedSpendingKey(p);
             } else {
               console.log('Insufficient balance to send funds');
@@ -182,12 +211,26 @@ const Receiver: React.FC <RecieverProps> = ({children,setRetrievalPopUp, setCrea
       const contract = new web3.eth.Contract(ensContractABI, ensContractAddress);
       console.log(`Sending stealth address to contract: ${stealth}`);
       console.log(`Sending viewing address to contract: ${viewingKey}`);
+      console.log("Current Provider:", web3.currentProvider);
+      console.log("Contract Address:", contract.options.address);
+
+      const latestBlock = await web3.eth.getBlockNumber();
+      console.log("Latest block:", latestBlock);
+
       const estimatedGas = await contract.methods.setKeyPair(stealth, viewingKey).estimateGas({ from: userAddress });
+
+      const gasPrice = await web3.eth.getGasPrice(); 
+      console.log('gasPrice',gasPrice); // Get current network gas price
+      const fastGasPrice = BigInt(gasPrice) * BigInt(2); // Double it for faster execution
+
+      //console.log(fastGasPrice);
+      const bufferGas = Math.floor(Number(estimatedGas) * 1.2); // Add 20% buffer
+      console.log(bufferGas);
       // Send the transaction to set the stealth address
       const tx = await contract.methods.setKeyPair(stealth, viewingKey).send(
         { from: userAddress, 
-        gas: estimatedGas.toString(),  // Use the estimated gas for accuracy
-        gasPrice: web3.utils.toWei('20', 'gwei') });
+        gas: bufferGas.toString(),  // Use the estimated gas for accuracy
+        gasPrice: fastGasPrice.toString() });
 
       console.log(`Transaction hash: ${tx.transactionHash}`);
 
@@ -228,7 +271,7 @@ const Receiver: React.FC <RecieverProps> = ({children,setRetrievalPopUp, setCrea
         gas: 21000,
         maxPriorityFeePerGas: priorityFee,
         maxFeePerGas: maxFee,
-        chainId: 11155111
+        chainId: chainId
       };
 
       console.log(tx);

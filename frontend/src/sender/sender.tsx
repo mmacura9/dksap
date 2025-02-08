@@ -89,10 +89,18 @@ const Sender: React.FC = () => {
       // Connect to MetaMask
       const ephermalPubKeyRegistryContract = new web3.eth.Contract(ephermalPubKeyRegistryContractABI,ephermalKeysContractAddress);
 
-      const stealthAddressBasePoint = ellipticCurve.keyFromPublic(stealthAddress.slice(2), 'hex').getPublic();
-      const sharedSecret = calculateSharedSecret(new BN(account.privateKey.slice(2),16),stealthAddressBasePoint);
-      const viewTag = new TextEncoder().encode(sharedSecret.getX().toString('hex'))[0];
+      const K = ellipticCurve.keyFromPublic(stealthAddress.slice(2), 'hex').getPublic(); // K
+      const V = ellipticCurve.keyFromPublic(viewingKey.slice(2), 'hex').getPublic(); // V
+      const r = new BN(account.privateKey.slice(2),16); // r
+      console.log('K: ' + stealthAddress);
+      console.log('V: '+ viewingKey);
+      console.log('r: '+ account.privateKey);
+      const sharedSecret = calculateSharedSecret(r,V);
+      const viewTag = new TextEncoder().encode(sharedSecret.getX().toString('hex'))[0].toString();
+      console.log(sharedSecret.getX().toString('hex'));
       // Send the transaction to add ephermal pub key
+      const P = calculateSpendingAddress(r,V, K);
+      console.log('P: ' +getAddressFromPublicKey(P));
       const txEphermal = await ephermalPubKeyRegistryContract.methods.addPubKeyAndTag(ephermalKey, viewTag).send({ from: userAddress });
 
       console.log(`Transaction hash: ${txEphermal.transactionHash}`);  
@@ -102,10 +110,6 @@ const Sender: React.FC = () => {
       console.log(`Transaction confirmed in block: ${receipt.blockNumber}`);
 
       alert("Ephermal pub key set successfully!");
-            
-      const viewingKeyBasePoint = ellipticCurve.keyFromPublic(viewingKey.slice(2), 'hex').getPublic();
-
-      const P = calculateSpendingAddress(new BN(account.privateKey.slice(2),16), stealthAddressBasePoint, viewingKeyBasePoint);
 
       const tx = {
                   from: userAddress,
