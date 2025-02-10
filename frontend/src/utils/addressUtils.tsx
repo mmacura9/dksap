@@ -7,9 +7,8 @@ import * as dotenv from 'dotenv';
 // Assuming elliptic curve and types are set up
 const ellipticCurve = new ec('secp256k1');
 
-
 // Calculate shared secret
-const calculateSharedSecret = (r: BN, M: curve.base.BasePoint): curve.base.BasePoint => {
+export const calculateSharedSecret = (r: BN, M: curve.base.BasePoint): curve.base.BasePoint => {
     const S = M.mul(r);  // Scalar multiplication: r * M
     return S;
 };
@@ -24,9 +23,9 @@ const generateWeb3 = () => {
 export const web3 = generateWeb3();
 
 
-// Calculate the point P = M + G * hash(S)
-export const calculateSpendingAddress = (r: BN, M: curve.base.BasePoint, T: curve.base.BasePoint): string => {
-    const S = calculateSharedSecret(r, T);
+// Calculate the point P = K + G*hash(r*V) = K + G*hash(R*v)  
+export const calculateSpendingAddress = (r: BN, V: curve.base.BasePoint, K: curve.base.BasePoint): string => {
+    const S = calculateSharedSecret(r, V);
     const SxHex = S.getX().toString('hex');  // Get X coordinate of S and convert to hex
     const hashOfS = keccak256(Buffer.from(SxHex, 'hex'));  // Keccak256 hash of S
 
@@ -40,7 +39,7 @@ export const calculateSpendingAddress = (r: BN, M: curve.base.BasePoint, T: curv
     const GHashS = G.mul(hashScalar);
 
     // Finally, calculate P = M + G * hash(S)
-    const P = M.add(GHashS);  // Point addition: M + G * hash(S)
+    const P = K.add(GHashS);  // Point addition: M + G * hash(S)
     return P.encode('hex',false);
 };
 
@@ -82,6 +81,9 @@ export const calculateSpendingAddressPrivateKey = (r: BN, M: curve.base.BasePoin
 };
 
 export const generatePublicKeyFromPrivate =  (privateKey:string) : string => {
+    if (privateKey.trim() === '')
+        return '';
+
     const privateKeySliced = privateKey.startsWith('0x') ? privateKey.slice(2) : privateKey; 
     const keyPair = ellipticCurve.keyFromPrivate(privateKeySliced, 'hex');
     const publicKey = keyPair.getPublic(false,'hex'); // This is G * m

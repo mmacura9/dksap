@@ -72,6 +72,7 @@ body {
   width: 100%;
   max-width: 800px;
   padding: 20px;
+  position: relative;
 }
 
 /* Card Style */
@@ -145,4 +146,50 @@ textarea:focus {
 
 .status-message.error {
   color: #d9534f;
+}
+
+.forgot-link {
+  color: blue;
+  cursor: pointer;
+  text-decoration: underline;
+  font-size: 12px;
+}
+
+.stealth-address-list {
+  margin-top: 20px;
+}
+
+.stealth-address-list ul {
+  list-style-type: none;
+  padding: 0;
+}
+
+.stealth-address-list li {
+  background-color: #f3f3f3;
+  margin: 5px 0;
+  padding: 10px;
+  border-radius: 5px;
+  
+  /* Text truncation */
+  white-space: nowrap;         /* Prevents wrapping */
+  overflow: hidden;            /* Hides overflowing content */
+  text-overflow: ellipsis;      /* Adds "..." at the end */
+  
+  cursor: pointer;
+}
+
+
+/* Generated Spending Key Display */
+.generated-spending-key {
+  background-color: #f3f3f3;
+  padding: 15px;
+  border-radius: 5px;
+  border: 1px solid #ddd;
+  font-size: 1rem;
+  word-break: break-word;
+  text-align: center;
+  margin-top: 10px;
+  margin-bottom: 10px;
+  font-style: italic;
+  color: #333;
 }

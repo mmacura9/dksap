@@ -1,25 +1,31 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, ReactNode } from 'react';
 // import Web3 from 'web3';
 import { ensContractABI } from '../ABI/ensContractABI';
 import { ephermalPubKeyRegistryContractABI } from '../ABI/ephermalPubKeyRegistryABI';
 import {ec} from "elliptic"
-import { calculateSpendingAddress, calculateSpendingAddressPrivateKey, checkBalance, generatePublicKeyFromPrivate, getAddressFromPublicKey} from '../utils/addressUtils';
+import { calculateSharedSecret, calculateSpendingAddress, calculateSpendingAddressPrivateKey, checkBalance, generatePublicKeyFromPrivate, getAddressFromPublicKey} from '../utils/addressUtils';
 import BN from 'bn.js';
 import { web3 } from '../utils/addressUtils';
+import { chainId, ensContractAddress, ephermalKeysContractAddress } from '../constants';
+
+interface RecieverProps {
+  children?: ReactNode;
+  setRetrievalPopUp: React.Dispatch<React.SetStateAction<boolean>>;
+  setCreateMnemonic: React.Dispatch<React.SetStateAction<boolean>>;
+  setChoisePopUp: React.Dispatch<React.SetStateAction<boolean>>;
+  setKeysSet?: React.Dispatch<React.SetStateAction<string>>;
+}
+
 
 const ellipticCurve = new ec('secp256k1');
 function sleep(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-// ENS contract address
-const contractAddress = "0x8E374082e2d4d84f4e1a7F233936b5e1fa1CcA6e";
-const EphermalPubKeyRegistryContractAddress = "0xcEFffb6b5BC579b954eC1053A9DffcA7125d883d";
-
-
-const Receiver: React.FC = () => {
+const Receiver: React.FC <RecieverProps> = ({children,setRetrievalPopUp, setCreateMnemonic, setKeysSet, setChoisePopUp}) => {
   const [account, setAccount] = useState<any>({ privateKey: '', address: '' });
   const [viewingAddress, setViewingAddress] = useState<any>({ privateKey: '', address: '' });
+  const [viewingGenerationAddress, setViewingGenerationAddress] = useState<any>({ privateKey: '', address: '' });
   const [viewingKey, setViewingKey] = useState('');
   const [userAddress, setUserAddress] = useState('');
   const [stealth, setStealth] = useState('');
@@ -40,10 +46,11 @@ const Receiver: React.FC = () => {
 
     // Get accounts and set the first account as the user address
     const accounts = await web3.eth.getAccounts();
-    console.log(accounts);
+    
     if (!accounts.length) {
       return [];
     }
+
     return accounts;
   };
 
@@ -67,6 +74,7 @@ const Receiver: React.FC = () => {
   const handleGenerateAccount = () => {
     const newAccount = generateAccount();
     const publicKey = generatePublicKeyFromPrivate(newAccount.privateKey)
+    
     const newViewingAccount = generateAccount();
     const newViewingKey = generatePublicKeyFromPrivate(newViewingAccount.privateKey);
     
@@ -86,42 +94,51 @@ const Receiver: React.FC = () => {
         throw new Error("No accounts found");
       }
       
-      // Connect to the contract
-      const contract = new web3.eth.Contract(
-        ephermalPubKeyRegistryContractABI,
-        EphermalPubKeyRegistryContractAddress
-      );
-      // Call the contract method to fetch all ephemeral keys
-      const estimatedGas = await contract.methods.getPubKeys().estimateGas();
-      const ephemeralKeys : string [] = await contract.methods.getPubKeys().call(
-        { 
-          from: userAddress, 
-          gas: estimatedGas.toString(),  // Use the estimated gas for accuracy
-          gasPrice: web3.utils.toWei('10', 'gwei'),
-        });
+      const result =localStorage.getItem('ephemeralKeyData') ? JSON.parse(localStorage.getItem('ephemeralKeyData') ?? ''): [];
+      const ephemeralKeys: string[] = [];
+      const viewTags: string[] = [];
 
-      const v = new BN(viewingAddress.privateKey.slice(2), 16);
-      const V = ellipticCurve.keyFromPublic(viewingAddress.publicKey.slice(2), 'hex').getPublic();
-      const m = new BN(completeStealth.privateStealth.slice(2), 16);
-      const M = ellipticCurve.keyFromPublic(completeStealth.publicStealth.slice(2), 'hex').getPublic();
+      for (let i=0; i<result.length;i++) {
+        const currPubKey = result[i].publicKey;
+        const currViewTag = result[i].viewTag;
+
+        if (ephemeralKeys.includes(currPubKey) && viewTags.includes(currViewTag)){
+          continue;
+        }
+
+        ephemeralKeys.push(currPubKey);
+        viewTags.push(currViewTag);
+      }
+
+      const v = new BN(viewingGenerationAddress.privateKey.slice(2), 16);
+      const V = ellipticCurve.keyFromPublic(viewingGenerationAddress.publicKey.slice(2), 'hex').getPublic();
+      const k = new BN(completeStealth.privateStealth.slice(2), 16);
+      const K = ellipticCurve.keyFromPublic(completeStealth.publicStealth.slice(2), 'hex').getPublic();
       
       if (Array.isArray(ephemeralKeys)) {
           for (let i=ephemeralKeys.length-1; i>=0; i--) {
             await sleep(100);
             const ephemeral = ephemeralKeys[i];
-            if (ephemeral.length < 66) {
+            const viewTag = viewTags[i]
+            if (viewTag === 'newViewTag') {
               continue;
             }
-            const R = ellipticCurve.keyFromPublic(ephemeral.slice(2), 'hex').getPublic();
             
-            const P = calculateSpendingAddress(v, M, R);
+            const R = ellipticCurve.keyFromPublic(ephemeral.slice(2), 'hex').getPublic();
+            const S =calculateSharedSecret(v,R);
+            const currentViewTag = new TextEncoder().encode(S.getX().toString('hex'))[0].toString();
+           
+            if (currentViewTag !== viewTag) {
+              continue;
+            }
+            
+            const P = calculateSpendingAddress(v, R, K);
             const ehtereumAddressP = getAddressFromPublicKey(P);
             const balanceAtP = await checkBalance(ehtereumAddressP ?? '');
-            console.log(`Balance for address ${ehtereumAddressP}: ${balanceAtP} ETH`);
             const balanceAtPFloat = parseFloat(balanceAtP);
             
             if (balanceAtPFloat > 0) {
-              const p = calculateSpendingAddressPrivateKey(m, R, m);
+              const p = calculateSpendingAddressPrivateKey(v, R, k);
               setGeneratedSpendingKey(p);
             } else {
               console.log('Insufficient balance to send funds');
@@ -135,6 +152,15 @@ const Receiver: React.FC = () => {
   };
   
 
+  const callSetKeys = async () => {
+    const privateKeyString = account?.privateKey ? account.privateKey : 'No private key';
+    const viewingKeyString = viewingAddress?.privateKey ? viewingAddress.privateKey : 'No viewing key';
+
+    if (setKeysSet) {
+      setKeysSet('private key: '+ privateKeyString + ', viewing key: ' + viewingKeyString);
+    }
+  }
+
   const handleSendMetaAddress = async () => {
     try {
       if (!account.address) {
@@ -143,7 +169,6 @@ const Receiver: React.FC = () => {
       }
   
       const listAccounts = await checkConnection();
-      console.log(listAccounts);
       if (listAccounts.length === 0) {
         setTransactionStatus('Error: No account found.');
         return;
@@ -159,28 +184,38 @@ const Receiver: React.FC = () => {
         throw new Error("No accounts found");
       }
 
-      const contract = new web3.eth.Contract(ensContractABI, contractAddress);
-      console.log(`Sending stealth address to contract: ${stealth}`);
-      console.log(`Sending viewing address to contract: ${viewingKey}`);
+      const contract = new web3.eth.Contract(ensContractABI, ensContractAddress);
       const estimatedGas = await contract.methods.setKeyPair(stealth, viewingKey).estimateGas({ from: userAddress });
+
+      const gasPrice = await web3.eth.getGasPrice(); 
+      const fastGasPrice = BigInt(gasPrice) * BigInt(2); // Double it for faster execution
+
+      const bufferGas = Math.floor(Number(estimatedGas) * 1.2); // Add 20% buffer
       // Send the transaction to set the stealth address
       const tx = await contract.methods.setKeyPair(stealth, viewingKey).send(
         { from: userAddress, 
-        gas: estimatedGas.toString(),  // Use the estimated gas for accuracy
-        gasPrice: web3.utils.toWei('20', 'gwei') });
-
-      console.log(`Transaction hash: ${tx.transactionHash}`);
+        gas: bufferGas.toString(),  // Use the estimated gas for accuracy
+        gasPrice: fastGasPrice.toString() });
 
       // Optionally, wait for the transaction receipt
       const receipt = await web3.eth.getTransactionReceipt(tx.transactionHash);
-      console.log(`Transaction confirmed in block: ${receipt.blockNumber}`);
 
       alert("Stealth address set successfully!");
+      
+      setChoisePopUp(true);
+      callSetKeys();
+
+      setTransactionStatus('');
+    
     } catch (error) {
       console.error("Error setting stealth address:", error);
       alert("Failed to set stealth address. Check console for details.");
     }
   };
+
+  const handleForgotPrivateKey = async () => {
+    setRetrievalPopUp(true);
+  }
   
   const handleUseSpendingKey = async () => {
     try {
@@ -198,11 +233,9 @@ const Receiver: React.FC = () => {
         gas: 21000,
         maxPriorityFeePerGas: priorityFee,
         maxFeePerGas: maxFee,
-        chainId: 11155111
+        chainId: chainId
       };
-
-      console.log(tx);
-
+      
       const signedTx = await web3.eth.accounts.signTransaction(tx, spendingKeyForTransaction);
 
       // Send the transaction
@@ -266,7 +299,7 @@ const Receiver: React.FC = () => {
             Send Meta Address to Contract
           </button>
           {transactionStatus && (
-            <div className="status-message">{transactionStatus}</div>
+            <div className="status-message error">{transactionStatus}</div>
           )}
         </div>
         <div className="get-ephermals-card">
@@ -275,7 +308,6 @@ const Receiver: React.FC = () => {
           type="text"
           className="myTextbox"
           placeholder="Enter private key of your stealth address"
-          value={completeStealth.privateStealth}
           onChange={(e) => {
             const privateKey = e.target.value;
             setCompleteStealth({
@@ -287,25 +319,27 @@ const Receiver: React.FC = () => {
           type="text"
           className="myTextbox"
           placeholder="Enter private viewing key of your stealth address"
-          value={viewingAddress.privateKey}
           onChange={(e) => {
             const privateKey = e.target.value;
-            setViewingAddress({
+            setViewingGenerationAddress({
               privateKey: privateKey,
               publicKey: generatePublicKeyFromPrivate(privateKey)});
           }} // Update state on input change
         />
-        <button className="get-ephermal-btn" onClick={handleGenerateSpendingKey}>
-          Generate spending key
-        </button>
-        {generatedSpendingKey ??
+        {generatedSpendingKey &&
         <div>
-          <h2>Spending key for given private stealth address</h2>
+          <h3>Spending key for given private stealth address</h3>
           <div className="generated-spending-key">
               {generatedSpendingKey}
           </div>
         </div>
         }
+        <button className="get-ephermal-btn" onClick={handleGenerateSpendingKey}>
+          Generate spending key
+        </button>
+        <div onClick={handleForgotPrivateKey} className="forgot-link">
+          Forgot private stealth keys?
+        </div>
       </div>
       <div className="get-transfer-card">
       <h1 className="header"> Transfer funds with spending key </h1>

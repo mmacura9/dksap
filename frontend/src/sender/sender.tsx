@@ -2,18 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { ensContractABI } from '../ABI/ensContractABI';
 import { ephermalPubKeyRegistryContractABI } from '../ABI/ephermalPubKeyRegistryABI';
 import {ec} from 'elliptic';
-import { calculateSpendingAddress, getAddressFromPublicKey } from '../utils/addressUtils';
+import { calculateSharedSecret, calculateSpendingAddress, getAddressFromPublicKey } from '../utils/addressUtils';
 import BN from 'bn.js';
 import { web3 } from '../utils/addressUtils';
+import { ensContractAddress, ephermalKeysContractAddress } from '../constants';
 
 // Use the secp256k1 curve
 const ellipticCurve = new ec('secp256k1');
-
-// Example of smart contract ABI and address (replace these with your actual values)
-
-// ENS contract address
-const ENSContractAddress = "0x8E374082e2d4d84f4e1a7F233936b5e1fa1CcA6e";
-const EphermalPubKeyRegistryContractAddress = "0xcEFffb6b5BC579b954eC1053A9DffcA7125d883d";
 
 const Sender: React.FC = () => {
   const [account, setAccount] = useState<any>({ privateKey: '', address: '' });
@@ -36,7 +31,7 @@ const Sender: React.FC = () => {
       const userAddress = accounts[0];
 
       // Connect to MetaMask
-      const ensContract = new web3.eth.Contract(ensContractABI,ENSContractAddress);
+      const ensContract = new web3.eth.Contract(ensContractABI,ensContractAddress);
 
       // Get stealth key associated with reciever
       const keyPairFromContract: {
@@ -46,8 +41,6 @@ const Sender: React.FC = () => {
         metaStealthKey: string;
         viewingKey: string;
       } = await ensContract.methods.getKeyPair(address).call();
-      console.log("Stealth Address:", keyPairFromContract);
-      console.log("Stealth Address Length:", keyPairFromContract.__length__);
       if (keyPairFromContract.__length__ !== 2) {
         alert('Not correct length of stealth address and viewing key' + keyPairFromContract.__length__);
         return;
@@ -92,23 +85,21 @@ const Sender: React.FC = () => {
       const userAddress = accounts[0];
 
       // Connect to MetaMask
-      const ephermalPubKeyRegistryContract = new web3.eth.Contract(ephermalPubKeyRegistryContractABI,EphermalPubKeyRegistryContractAddress);
+      const ephermalPubKeyRegistryContract = new web3.eth.Contract(ephermalPubKeyRegistryContractABI,ephermalKeysContractAddress);
 
-      // Send the transaction to add ephermal pub key
-      const txEphermal = await ephermalPubKeyRegistryContract.methods.addPubKey(ephermalKey).send({ from: userAddress });
+      const K = ellipticCurve.keyFromPublic(stealthAddress.slice(2), 'hex').getPublic(); // K
+      const V = ellipticCurve.keyFromPublic(viewingKey.slice(2), 'hex').getPublic(); // V
+      const r = new BN(account.privateKey.slice(2),16); // r
+      const sharedSecret = calculateSharedSecret(r,V);
+      const viewTag = new TextEncoder().encode(sharedSecret.getX().toString('hex'))[0].toString();
 
-      console.log(`Transaction hash: ${txEphermal.transactionHash}`);  
+      const P = calculateSpendingAddress(r,V, K);
 
+      const txEphermal = await ephermalPubKeyRegistryContract.methods.addPubKeyAndTag(ephermalKey, viewTag).send({ from: userAddress });
       // Optionally, wait for the transaction receipt
       const receipt = await web3.eth.getTransactionReceipt(txEphermal.transactionHash);
-      console.log(`Transaction confirmed in block: ${receipt.blockNumber}`);
-
+      
       alert("Ephermal pub key set successfully!");
-            
-      const stealthAddressBasePoint = ellipticCurve.keyFromPublic(stealthAddress.slice(2), 'hex').getPublic();
-      const viewingKeyBasePoint = ellipticCurve.keyFromPublic(viewingKey.slice(2), 'hex').getPublic();
-
-      const P = calculateSpendingAddress(new BN(account.privateKey.slice(2),16), stealthAddressBasePoint, viewingKeyBasePoint);
 
       const tx = {
                   from: userAddress,
@@ -118,7 +109,6 @@ const Sender: React.FC = () => {
                   gasPrice: await web3.eth.getGasPrice(),
                 };
       const sentTx = await web3.eth.sendTransaction(tx);
-      console.log("public address: ", getAddressFromPublicKey(P))
       
       console.log(`Transaction successful with hash: ${sentTx.transactionHash}`);
 
