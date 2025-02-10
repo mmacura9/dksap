@@ -32,3 +32,9 @@ The DKSAP protocol is like this:
 
 
 # Key Recovery
+
+We added user mnemoic key recovery mechanism which basically works in the following way:
+- User enters message/password which he want to be able to recover later
+- He gets prompted 12 words which should get written down and encrypted word gets stored
+- When he wants to recover the key, he enters in recovery mode above-mentioned words
+- Key gets decrypted and user can access the message that he forgot.
