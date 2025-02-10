@@ -63,7 +63,6 @@ const RetrievalPopUp: React.FC<RetrievalProps> = ({ children, setRetrievalPopUp 
             decrypted += decipher.final("utf8");
             setPrivateKey(decrypted);
 
-            console.log("Decrypted Password:", decrypted);
             return decrypted;
         } catch (error) {
             console.error("Decryption failed:", error);

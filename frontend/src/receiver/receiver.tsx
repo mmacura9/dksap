@@ -25,6 +25,7 @@ function sleep(ms: number) {
 const Receiver: React.FC <RecieverProps> = ({children,setRetrievalPopUp, setCreateMnemonic, setKeysSet, setChoisePopUp}) => {
   const [account, setAccount] = useState<any>({ privateKey: '', address: '' });
   const [viewingAddress, setViewingAddress] = useState<any>({ privateKey: '', address: '' });
+  const [viewingGenerationAddress, setViewingGenerationAddress] = useState<any>({ privateKey: '', address: '' });
   const [viewingKey, setViewingKey] = useState('');
   const [userAddress, setUserAddress] = useState('');
   const [stealth, setStealth] = useState('');
@@ -45,12 +46,11 @@ const Receiver: React.FC <RecieverProps> = ({children,setRetrievalPopUp, setCrea
 
     // Get accounts and set the first account as the user address
     const accounts = await web3.eth.getAccounts();
-    const network = await web3.eth.getChainId();
-    console.log(accounts);
-    console.log(network);
+    
     if (!accounts.length) {
       return [];
     }
+
     return accounts;
   };
 
@@ -75,17 +75,7 @@ const Receiver: React.FC <RecieverProps> = ({children,setRetrievalPopUp, setCrea
     const newAccount = generateAccount();
     const publicKey = generatePublicKeyFromPrivate(newAccount.privateKey)
     
-    const storedAccount = localStorage.getItem('viewAccount'); 
-    console.log('storedAcc',storedAccount);
-
-    const newViewingAccount = (storedAccount != null && storedAccount != '') ? JSON.parse(storedAccount) : generateAccount();
-    console.log(newViewingAccount);
-
-    if (!storedAccount) {
-      localStorage.setItem('viewAccount', JSON.stringify(newViewingAccount));
-      console.log(localStorage.getItem('viewAccount'))
-    }
-    
+    const newViewingAccount = generateAccount();
     const newViewingKey = generatePublicKeyFromPrivate(newViewingAccount.privateKey);
     
     setStealth(publicKey);
@@ -105,7 +95,6 @@ const Receiver: React.FC <RecieverProps> = ({children,setRetrievalPopUp, setCrea
       }
       
       const result =localStorage.getItem('ephemeralKeyData') ? JSON.parse(localStorage.getItem('ephemeralKeyData') ?? ''): [];
-      console.log(result);
       const ephemeralKeys: string[] = [];
       const viewTags: string[] = [];
 
@@ -121,15 +110,10 @@ const Receiver: React.FC <RecieverProps> = ({children,setRetrievalPopUp, setCrea
         viewTags.push(currViewTag);
       }
 
-
-      console.log(ephemeralKeys);
-      console.log(viewTags);
-
-      const v = new BN(viewingAddress.privateKey.slice(2), 16);
-      const V = ellipticCurve.keyFromPublic(viewingAddress.publicKey.slice(2), 'hex').getPublic();
+      const v = new BN(viewingGenerationAddress.privateKey.slice(2), 16);
+      const V = ellipticCurve.keyFromPublic(viewingGenerationAddress.publicKey.slice(2), 'hex').getPublic();
       const k = new BN(completeStealth.privateStealth.slice(2), 16);
       const K = ellipticCurve.keyFromPublic(completeStealth.publicStealth.slice(2), 'hex').getPublic();
-      console.log(completeStealth.publicStealth);
       
       if (Array.isArray(ephemeralKeys)) {
           for (let i=ephemeralKeys.length-1; i>=0; i--) {
@@ -142,14 +126,8 @@ const Receiver: React.FC <RecieverProps> = ({children,setRetrievalPopUp, setCrea
             
             const R = ellipticCurve.keyFromPublic(ephemeral.slice(2), 'hex').getPublic();
             const S =calculateSharedSecret(v,R);
-            console.log(S.getX().toString('hex'));
             const currentViewTag = new TextEncoder().encode(S.getX().toString('hex'))[0].toString();
-            console.log(viewTag);
-            console.log(currentViewTag);
-            console.log('K: '+ completeStealth.publicStealth);
-            console.log('v:' + viewingAddress.privateKey);
-            console.log('R: '+ ephemeral);
-
+           
             if (currentViewTag !== viewTag) {
               continue;
             }
@@ -157,7 +135,6 @@ const Receiver: React.FC <RecieverProps> = ({children,setRetrievalPopUp, setCrea
             const P = calculateSpendingAddress(v, R, K);
             const ehtereumAddressP = getAddressFromPublicKey(P);
             const balanceAtP = await checkBalance(ehtereumAddressP ?? '');
-            console.log(`Balance for address ${ehtereumAddressP}: ${balanceAtP} ETH`);
             const balanceAtPFloat = parseFloat(balanceAtP);
             
             if (balanceAtPFloat > 0) {
@@ -192,7 +169,6 @@ const Receiver: React.FC <RecieverProps> = ({children,setRetrievalPopUp, setCrea
       }
   
       const listAccounts = await checkConnection();
-      console.log(listAccounts);
       if (listAccounts.length === 0) {
         setTransactionStatus('Error: No account found.');
         return;
@@ -209,34 +185,20 @@ const Receiver: React.FC <RecieverProps> = ({children,setRetrievalPopUp, setCrea
       }
 
       const contract = new web3.eth.Contract(ensContractABI, ensContractAddress);
-      console.log(`Sending stealth address to contract: ${stealth}`);
-      console.log(`Sending viewing address to contract: ${viewingKey}`);
-      console.log("Current Provider:", web3.currentProvider);
-      console.log("Contract Address:", contract.options.address);
-
-      const latestBlock = await web3.eth.getBlockNumber();
-      console.log("Latest block:", latestBlock);
-
       const estimatedGas = await contract.methods.setKeyPair(stealth, viewingKey).estimateGas({ from: userAddress });
 
       const gasPrice = await web3.eth.getGasPrice(); 
-      console.log('gasPrice',gasPrice); // Get current network gas price
       const fastGasPrice = BigInt(gasPrice) * BigInt(2); // Double it for faster execution
 
-      //console.log(fastGasPrice);
       const bufferGas = Math.floor(Number(estimatedGas) * 1.2); // Add 20% buffer
-      console.log(bufferGas);
       // Send the transaction to set the stealth address
       const tx = await contract.methods.setKeyPair(stealth, viewingKey).send(
         { from: userAddress, 
         gas: bufferGas.toString(),  // Use the estimated gas for accuracy
         gasPrice: fastGasPrice.toString() });
 
-      console.log(`Transaction hash: ${tx.transactionHash}`);
-
       // Optionally, wait for the transaction receipt
       const receipt = await web3.eth.getTransactionReceipt(tx.transactionHash);
-      console.log(`Transaction confirmed in block: ${receipt.blockNumber}`);
 
       alert("Stealth address set successfully!");
       
@@ -273,9 +235,7 @@ const Receiver: React.FC <RecieverProps> = ({children,setRetrievalPopUp, setCrea
         maxFeePerGas: maxFee,
         chainId: chainId
       };
-
-      console.log(tx);
-
+      
       const signedTx = await web3.eth.accounts.signTransaction(tx, spendingKeyForTransaction);
 
       // Send the transaction
@@ -348,7 +308,6 @@ const Receiver: React.FC <RecieverProps> = ({children,setRetrievalPopUp, setCrea
           type="text"
           className="myTextbox"
           placeholder="Enter private key of your stealth address"
-          value={completeStealth.privateStealth}
           onChange={(e) => {
             const privateKey = e.target.value;
             setCompleteStealth({
@@ -360,10 +319,9 @@ const Receiver: React.FC <RecieverProps> = ({children,setRetrievalPopUp, setCrea
           type="text"
           className="myTextbox"
           placeholder="Enter private viewing key of your stealth address"
-          value={viewingAddress.privateKey}
           onChange={(e) => {
             const privateKey = e.target.value;
-            setViewingAddress({
+            setViewingGenerationAddress({
               privateKey: privateKey,
               publicKey: generatePublicKeyFromPrivate(privateKey)});
           }} // Update state on input change

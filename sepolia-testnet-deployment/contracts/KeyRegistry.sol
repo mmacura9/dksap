@@ -15,8 +15,8 @@ contract EphemeralPubKeyRegistry {
     // Add a new ephemeral public key with view tag to the general list
     function addPubKeyAndTag(string calldata publicKey, string calldata viewTag) external {
         require(bytes(publicKey).length > 0, "Public key cannot be empty");
-        // require(bytes(publicKey).length == 66, "Not correct size of the key");
-        // require(bytes(viewTag).length == 8, "Not correct size of the tag");
+        require(bytes(publicKey).length == 132, "Not correct size of the key");
+        require(bytes(viewTag).length <= 3, "Not correct size of the tag");
 
         keysAndTags.push(KeyAndTag(publicKey,viewTag));
 

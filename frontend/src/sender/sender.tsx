@@ -41,8 +41,6 @@ const Sender: React.FC = () => {
         metaStealthKey: string;
         viewingKey: string;
       } = await ensContract.methods.getKeyPair(address).call();
-      console.log("Stealth Address:", keyPairFromContract);
-      console.log("Stealth Address Length:", keyPairFromContract.__length__);
       if (keyPairFromContract.__length__ !== 2) {
         alert('Not correct length of stealth address and viewing key' + keyPairFromContract.__length__);
         return;
@@ -92,23 +90,15 @@ const Sender: React.FC = () => {
       const K = ellipticCurve.keyFromPublic(stealthAddress.slice(2), 'hex').getPublic(); // K
       const V = ellipticCurve.keyFromPublic(viewingKey.slice(2), 'hex').getPublic(); // V
       const r = new BN(account.privateKey.slice(2),16); // r
-      console.log('K: ' + stealthAddress);
-      console.log('V: '+ viewingKey);
-      console.log('r: '+ account.privateKey);
       const sharedSecret = calculateSharedSecret(r,V);
       const viewTag = new TextEncoder().encode(sharedSecret.getX().toString('hex'))[0].toString();
-      console.log(sharedSecret.getX().toString('hex'));
-      // Send the transaction to add ephermal pub key
+
       const P = calculateSpendingAddress(r,V, K);
-      console.log('P: ' +getAddressFromPublicKey(P));
+
       const txEphermal = await ephermalPubKeyRegistryContract.methods.addPubKeyAndTag(ephermalKey, viewTag).send({ from: userAddress });
-
-      console.log(`Transaction hash: ${txEphermal.transactionHash}`);  
-
       // Optionally, wait for the transaction receipt
       const receipt = await web3.eth.getTransactionReceipt(txEphermal.transactionHash);
-      console.log(`Transaction confirmed in block: ${receipt.blockNumber}`);
-
+      
       alert("Ephermal pub key set successfully!");
 
       const tx = {
@@ -119,7 +109,6 @@ const Sender: React.FC = () => {
                   gasPrice: await web3.eth.getGasPrice(),
                 };
       const sentTx = await web3.eth.sendTransaction(tx);
-      console.log("public address: ", getAddressFromPublicKey(P))
       
       console.log(`Transaction successful with hash: ${sentTx.transactionHash}`);
 

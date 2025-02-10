@@ -28,7 +28,6 @@ export const calculateSpendingAddress = (r: BN, V: curve.base.BasePoint, K: curv
     const S = calculateSharedSecret(r, V);
     const SxHex = S.getX().toString('hex');  // Get X coordinate of S and convert to hex
     const hashOfS = keccak256(Buffer.from(SxHex, 'hex'));  // Keccak256 hash of S
-    console.log('hashS: ' + hashOfS);     
 
     // Convert the hash to a BigInteger for scalar multiplication
     const hashScalar = ellipticCurve.keyFromPrivate(hashOfS).getPrivate();

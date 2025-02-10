@@ -20,11 +20,15 @@ const Inspect: React.FC <RecieverProps> = ({children}) => {
 
     const handleListAllStealthAddresses = async () => {
       const V = generatePublicKeyFromPrivate(viweingAddress);
-      console.log(V);
       const stealthData = JSON.parse(localStorage.getItem('stealthData') ?? '{}') ?? {};
       const metaStealthKeys: string[] = [];
       const viewingKeys: string[] = [];
-      stealthData.forEach((e:any) => {metaStealthKeys.push(e.metaStealthKey); viewingKeys.push(e.viewingKey);}) 
+
+      for(let i =0;i<stealthData.length;i++) {
+        const currStealth = stealthData[i];
+        metaStealthKeys.push(currStealth.metaStealthKey);
+        viewingKeys.push(currStealth.viewingKey);
+      }
 
       const filteredStealthKeys = metaStealthKeys.filter((_,index) => viewingKeys[index] === V);
       setListOfStealthAddresses(filteredStealthKeys);

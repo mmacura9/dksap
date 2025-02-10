@@ -39,9 +39,7 @@ import { ensContractABI } from './ABI/ensContractABI';
 
           const publicKey = returnValues.pubKey;  // Use the event parameter names from Solidity
           const viewTag = returnValues.tag; 
-          console.log("New Public Key Added:", publicKey);
-          console.log("View Tag:", viewTag);
-  
+          
           // You can save the data to localStorage or handle it as needed
           const data = { publicKey, viewTag };
           // Retrieve the existing data from localStorage (if any)
@@ -50,15 +48,31 @@ import { ensContractABI } from './ABI/ensContractABI';
           // Add new data to the array
           const newData = { publicKey: publicKey, viewTag: viewTag };
           existingData.push(newData);
-          console.log(existingData);
+          
+          const finalData : any = [];
+          const publicKeys : string [] = [];
+          const viewTags : string []= [];
+
+          for (let i=0; i<existingData.length;i++) {
+            const currPublicKey = existingData[i].publicKey;
+            const currViewTag = existingData[i].viewTag;
+    
+            if (publicKeys.includes(currPublicKey) && viewTags.includes(currViewTag)){
+              continue;
+            }
+    
+            publicKeys.push(currPublicKey);
+            viewTags.push(currViewTag);
+            finalData.push(existingData[i]);
+          }
 
           // Save the updated array back to localStorage
-          localStorage.setItem('ephemeralKeyData', JSON.stringify(existingData));
+          localStorage.setItem('ephemeralKeyData', JSON.stringify(finalData));
         })
   
       // Cleanup listener on component unmount
       return () => {
-        return;
+        contract.events.PubKeyAndTagAdded().off('data',()=>{});
       };
     }, []);
 
@@ -82,8 +96,6 @@ import { ensContractABI } from './ABI/ensContractABI';
 
           const metaStealthKey = returnValues.metaStealthKey;  // Use the event parameter names from Solidity
           const viewingKey = returnValues.viewingKey; 
-          console.log("New Meta Stealth Key Added:", metaStealthKey);
-          console.log("New viewing key added:", viewingKey);
   
           // You can save the data to localStorage or handle it as needed
           const data = { metaStealthKey, viewingKey };
@@ -94,13 +106,30 @@ import { ensContractABI } from './ABI/ensContractABI';
           const newData = { metaStealthKey: metaStealthKey, viewingKey: viewingKey };
           existingData.push(newData);
 
+          const finalData : any = [];
+          const metaStealthKeys : string [] = [];
+          const viewingKeys : string []= [];
+
+          for (let i=0; i<existingData.length;i++) {
+            const currMetaStealthKey = existingData[i].metaStealthKey;
+            const currViewingKey = existingData[i].viewingKey;
+    
+            if (metaStealthKeys.includes(currMetaStealthKey) && viewingKeys.includes(currViewingKey)){
+              continue;
+            }
+    
+            metaStealthKeys.push(currMetaStealthKey);
+            viewingKeys.push(currViewingKey);
+            finalData.push(existingData[i]);
+          }
+
           // Save the updated array back to localStorage
-          localStorage.setItem('stealthData', JSON.stringify(existingData));
+          localStorage.setItem('stealthData', JSON.stringify(finalData));
         })
   
       // Cleanup listener on component unmount
       return () => {
-        return;
+        contract.events.KeyPairSet().off('data',()=>{});
       };
     }, []);
 

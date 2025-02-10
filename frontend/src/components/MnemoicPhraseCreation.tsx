@@ -18,8 +18,7 @@ const MnemoicPhraseCreation: React.FC<MnemoicPhraseCreationProps> = ({ children,
     const handleCreateMnemoic = async () => {
         // Generate Mnemonic
         const mnemonic = bip39.generateMnemonic();
-        console.log(mnemonic);
-
+       
         // Derive seed from mnemonic
         const seed = bip39.mnemonicToSeedSync(mnemonic);
         const key = crypto.createHash('sha256').update(seed).digest(); // Use SHA-256 hash of seed
@@ -39,8 +38,6 @@ const MnemoicPhraseCreation: React.FC<MnemoicPhraseCreationProps> = ({ children,
         // Save back to localStorage
         localStorage.setItem("mnemonicStorage", JSON.stringify(mnemonics));
 
-        console.log("Stored Mnemonics:", mnemonics)
-        console.log('Encrypted Password:', encrypted);
         setGeneratedMnemoic(true);
     }
     

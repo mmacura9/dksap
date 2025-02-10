@@ -14,6 +14,8 @@ contract StealthAddressRegistry {
     event KeyPairRemoved(address indexed publicAddress);
 
     function setKeyPair(string calldata metaStealthKey, string calldata viewingKey) external {
+        require(bytes(metaStealthKey).length == 132, "Wrong size of meta stealth address");
+        require(bytes(viewingKey).length == 132, "Wrong size of viewing key");
         if (bytes(addressToKeys[msg.sender].metaStealthKey).length == 0) {
             allAddresses.push(msg.sender); // Store new address only if it's new
         }
